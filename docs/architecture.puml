@@ -1,0 +1,641 @@
+' Agent Flight Recorder (AFR) PlantUML 图集
+' UTF-8；不使用远程 include。一个文件包含多个可独立渲染的图。
+
+@startuml AFR_01_Context
+title AFR 系统上下文与真实证据边界
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam ArrowColor #355C7D
+skinparam rectangleBorderColor #355C7D
+skinparam rectangleBackgroundColor #F7FAFC
+skinparam actorBorderColor #1F4E78
+
+actor "开发者" as Developer
+actor "复核 / 审计人员" as Auditor
+
+rectangle "薄入口" as Entry {
+  rectangle "afr CLI" as CLI #D9EAF7
+  rectangle "Codex Plugin\nskill（v0.1）\nhooks（v0.2 按需）" as CodexPlugin #E8F1FA
+  rectangle "Claude Code Plugin\nskill（v0.1）\nhooks（v0.2 按需）" as ClaudePlugin #E8F1FA
+}
+
+rectangle "Agent Host" as Hosts {
+  rectangle "Codex / codex exec" as Codex
+  rectangle "Claude Code / 非交互模式" as Claude
+  rectangle "其他命令行 Agent" as OtherAgent
+}
+
+rectangle "AFR 本地证据内核" as AFR #E2F0D9
+rectangle "Git / 工作区" as Workspace #FFF2CC
+database "~/.afr/sessions\n本地会话目录" as Store #FCE4D6
+rectangle "本地浏览器\n离线 report.html" as Browser #EDE7F6
+cloud "可选团队分析 / Dify\nP2，仅脱敏摘要" as Dify #F2F2F2
+
+Developer --> CLI : 直接运行
+Developer --> CodexPlugin : 调用 skill
+Developer --> ClaudePlugin : 调用 skill
+CodexPlugin --> CLI : 组装 argv，不实现证据链
+ClaudePlugin --> CLI : 组装 argv，不实现证据链
+
+CLI --> Codex : wrapper 模式
+CLI --> Claude : wrapper 模式
+CLI --> OtherAgent : wrapper 模式
+CodexPlugin ..> AFR : v0.2 正式 hook JSON
+ClaudePlugin ..> AFR : v0.2 正式 hook JSON
+
+CLI --> AFR : 进程 / 输出 / 状态
+AFR --> Workspace : before / after / Git delta
+AFR --> Store : 只写已脱敏证据
+Auditor --> AFR : list / show / verify / clean
+Auditor --> Browser : 打开本地报告
+Browser --> Store : 读取单文件 HTML
+Store ..> Dify : P2，用户显式允许的脱敏摘要
+
+note right of AFR
+  唯一实现：
+  - 会话与进程托管
+  - 写盘前脱敏
+  - 本地规则
+  - seq / 哈希链
+  - manifest / report / verify
+end note
+
+note bottom of Workspace
+  L1 只能证明工作区内 before/after。
+  未启用 OS 监控时，任意外部写入与
+  实际网络流量必须显示 not_observable。
+end note
+
+legend left
+  |= 线型 |= 含义 |
+  | 实线 | v0.1 必需数据流 |
+  | 虚线 | v0.2/P2 可选增强 |
+endlegend
+@enduml
+
+@startuml AFR_02_Components
+title AFR 核心组件与信任边界
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam componentStyle rectangle
+skinparam ArrowColor #3B5B79
+
+package "不可信输入（禁止直接落盘）" #FFF2CC {
+  component "Child Process\nstdout / stderr / exit" as Child
+  component "Native Hook Decoder\nP2" as HookDecoder
+  component "Git / File Collector" as Collector
+}
+
+package "AFR 内存安全管线" #E2F0D9 {
+  component "CLI Router" as Router
+  component "Process Supervisor" as Supervisor
+  component "Event Normalizer" as Normalizer
+  component "Bounded Record Reader" as Bounded
+  component "Streaming Redactor" as Redactor
+  component "Capability-aware\nPolicy Engine" as Policy
+  component "Sequencer +\nHash-chain Writer" as Writer
+}
+
+package "本地持久化" #D9EAF7 {
+  database "Session Store" as SessionStore
+  component "Manifest Builder\nevidence / derived" as Manifest
+  component "Verifier" as Verifier
+  component "Report View Model" as ViewModel
+  component "Markdown / Risk JSON /\nOffline HTML" as Reports
+  component "Safe Cleaner" as Cleaner
+}
+
+Router --> Supervisor : argv[] / workspace
+Supervisor --> Child : spawn / signal / wait
+Child --> Supervisor : raw streams + result
+Supervisor --> Normalizer : process candidates
+HookDecoder ..> Normalizer : native candidates（P2）
+Collector --> Normalizer : before / after / delta
+Normalizer --> Bounded
+Bounded --> Redactor : bounded text or metadata
+Redactor --> Policy : redacted event
+Policy --> Writer : event + findings
+Writer --> SessionStore : append-only events
+Redactor --> SessionStore : redacted evidence artifacts
+SessionStore --> Manifest : finalized evidence list
+Manifest --> SessionStore : atomic manifest.json
+SessionStore --> ViewModel : verified, redacted structures
+ViewModel --> Reports
+Reports --> SessionStore : atomic derived artifacts
+SessionStore --> Verifier : stream read
+Verifier --> SessionStore : no mutation
+Cleaner --> SessionStore : exact validated target only
+
+note right of Redactor
+  所有持久化内容必须经过这里。
+  二进制、超长或无法安全解析的内容
+  fail-closed：只存 size/hash/reason。
+end note
+
+note bottom of Policy
+  规则只能处理已经看见的事实。
+  没有 native/OS 证据时不能声称
+  观察到隐藏工具、外部写入或网络流量。
+end note
+
+note bottom of Writer
+  v0.1 wrapper：单进程单 writer。
+  v0.2 hooks：O_EXCL session lock 串行 seq/hash；
+  只有实测瓶颈才引入常驻单写者。
+end note
+@enduml
+
+@startuml AFR_03_Run_Sequence
+title afr run 正常、失败与中断时序
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+autonumber
+
+actor "用户" as User
+participant "afr CLI" as CLI
+participant "Session Store" as Store
+participant "Workspace Collector" as WS
+participant "Child Agent" as Agent
+participant "Output Capture" as Capture
+participant "Redactor + Policy" as Safe
+participant "Event Writer" as Writer
+participant "Reporter" as Reporter
+
+User -> CLI : afr run [flags] -- argv[]
+CLI -> CLI : 校验 argv / workspace / config
+CLI -> Store : 创建权限受限 session\n原子写初始 session.json
+CLI -> Writer : 打开唯一 writer
+Writer -> Store : session_started
+CLI -> WS : collect before
+WS --> CLI : Git/file baseline + pre-existing
+CLI -> Safe : baseline candidates
+Safe -> Writer : redacted baseline events
+Writer -> Store : append + flush
+
+CLI -> Agent : spawn argv[]
+CLI -> Capture : 启动 stdout / stderr drain
+Capture -> Writer : process_started
+
+par stdout
+  loop 每个 bounded record
+    Agent -> Capture : stdout raw bytes
+    Capture --> User : 原样终端显示（不持久化）
+    Capture -> Safe : 副本 + raw byte count/hash
+    Safe -> Writer : redacted process_output / finding
+    Writer -> Store : seq + chain hash + append
+  end
+and stderr
+  loop 每个 bounded record
+    Agent -> Capture : stderr raw bytes
+    Capture --> User : 原样终端显示（不持久化）
+    Capture -> Safe : 副本 + raw byte count/hash
+    Safe -> Writer : redacted process_output / finding
+    Writer -> Store : seq + chain hash + append
+  end
+end
+
+alt child 正常或非零退出
+  Agent --> CLI : exit code
+  CLI -> Writer : process_exited(exit_code)
+else 第一次 Ctrl+C
+  User -> CLI : interrupt
+  CLI -> Agent : 转发信号 / 进入宽限期
+  alt 宽限期内退出
+    Agent --> CLI : terminated result
+  else 超时或第二次 Ctrl+C
+    CLI -> Agent : 终止完整 process tree
+    Agent --> CLI : killed result
+  end
+  CLI -> Writer : session_interrupted(actual result)
+else AFR 被硬杀 / 断电
+  note over CLI,Store
+    无机会写中断事件。
+    后续 list/show 从缺失收尾和 torn tail
+    推断 incomplete，不伪造历史。
+  end note
+end
+
+CLI -> WS : collect after
+WS --> CLI : final state + session delta
+CLI -> Safe : final evidence / Diff
+Safe -> Writer : redacted workspace_final + findings
+Writer -> Store : append
+CLI -> Writer : session_finished
+Writer -> Store : flush / sync / close
+CLI -> Store : 原子写 final session.json
+CLI -> Reporter : build from redacted evidence
+Reporter -> Store : 原子写 md/json/html
+CLI -> Store : 最后原子写 manifest.json
+CLI --> User : session ID / capability / risk / report\n返回 child 或 AFR 契约退出码
+@enduml
+
+@startuml AFR_04_Session_State
+title AFR v0.1 会话状态机
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+
+state "Starting" as Starting
+state "Running" as Running
+state "Finalizing" as Finalizing
+state "Completed" as Completed #E2F0D9
+state "Failed" as Failed #FCE4D6
+state "Interrupted" as Interrupted #FFF2CC
+state "Incomplete" as Incomplete #F4CCCC
+
+[*] --> Starting : 已通过参数校验\n创建 session
+Starting --> Running : session_started + baseline\nchild started
+Starting --> Failed : child 启动前可记录失败
+Running --> Finalizing : child exit 0 或非 0
+Running --> Interrupted : 收到 signal / child 被强杀
+Interrupted --> Finalizing : 已记录实际终止结果
+Finalizing --> Completed : events/session/reports/manifest\n完成并关闭
+Finalizing --> Failed : 可诊断的收尾失败
+
+Starting ..> Incomplete : AFR hard kill / power loss\n后续命令推断
+Running ..> Incomplete : AFR hard kill / torn tail\n后续命令推断
+Finalizing ..> Incomplete : artifact/manifest 未完成\n后续命令推断
+
+Completed --> [*]
+Failed --> [*]
+Incomplete --> [*] : 只读复核，不续写 events
+
+note right of Completed
+  Completed 表示证据正常收尾。
+  child_exit_code 可以是非零；
+  业务失败与证据失败分开。
+end note
+
+note bottom of Incomplete
+  只读取最后完整事件前缀。
+  torn tail 保留 size/hash，绝不静默截断。
+end note
+@enduml
+
+@startuml AFR_05_Evidence_Activity
+title 证据从原始输入到本地制品的安全活动流
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+
+start
+
+partition "Raw Sources（不可信）" #FFF2CC {
+  :接收 argv / stdout / stderr /\nGit/File / optional hook JSON;
+  :累计原始字节数与会话级 HMAC 指纹;
+}
+
+partition "In-Memory Safety" #E2F0D9 {
+  if (可安全解析为有界文本记录？) then (是)
+    :标准化字段与编码;
+    :应用内置 + 用户 RE2 脱敏;
+    :使用会话内 HMAC 生成关联占位符;
+  else (否)
+    :丢弃正文;
+    :生成 omitted(size, fingerprint, reason);
+  endif
+
+  if (超过 stream / Diff 容量上限？) then (是)
+    :停止保存后续正文;
+    :继续 drain、计数与计算完整 hash;
+    :生成 truncation marker;
+  endif
+
+  :基于可见能力运行确定性规则;
+  :生成 redaction / truncation /\nnot_observable metadata;
+}
+
+partition "Normalized Evidence" #D9EAF7 {
+  :一次性编码 event body bytes;
+  :分配严格递增 seq;
+  :计算 prev_hash + current hash;
+  :单行追加 events.jsonl;
+  :按策略 flush / sync;
+}
+
+if (写入或链处理失败？) then (是)
+  :标记 evidence gap / incomplete;
+  :不得静默当作完整会话;
+else (否)
+  partition "Finalized Artifacts" #EDE7F6 {
+    :冻结 evidence artifacts;
+    :从已脱敏结构生成 Markdown/JSON/HTML;
+    :原子写 manifest(evidence, derived);
+  }
+endif
+
+stop
+@enduml
+
+@startuml AFR_06_Data_Model
+title AFR v1 数据模型与校验关系
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam classAttributeIconSize 0
+
+class "Session" as Session {
+  +format_version: uint
+  +session_id: string
+  +status: SessionStatus
+  +started_at: RFC3339
+  +finished_at: RFC3339?
+  +child_exit_code: int?
+  +final_event_hash: hex?
+  +capabilities: Capability[]
+  +coverage_gaps: CoverageGap[]
+}
+
+class "EventEnvelope" as Event {
+  +format_version: uint
+  +prev_hash: hex
+  +body: RawJSON
+  +hash: hex
+}
+
+class "EventBody" as Body {
+  +seq: uint64
+  +ts: RFC3339
+  +elapsed_ns: uint64
+  +type: string
+  +source: string
+  +payload: object
+}
+
+class "Capability" as Capability {
+  +name: string
+  +status: observed | partial | not_observable
+  +source: string
+  +reason: string?
+}
+
+class "RiskFinding" as Risk {
+  +rule_id: string
+  +rule_version: string
+  +basis: observed | inferred
+  +severity: info | low | medium | high
+  +evidence_seq: uint64[]
+  +explanation: string
+  +action: string
+}
+
+class "Artifact" as Artifact {
+  +relative_path: string
+  +kind: evidence | derived
+  +size: uint64
+  +sha256: hex
+  +truncated: bool
+  +source_final_hash: hex?
+}
+
+class "Manifest" as Manifest {
+  +format_version: uint
+  +session_id: string
+  +final_event_hash: hex
+  +evidence: Artifact[]
+  +derived: Artifact[]
+}
+
+class "VerificationResult" as Verify {
+  +status: pass | fail | incomplete
+  +first_bad_seq: uint64?
+  +bad_artifact_path: string?
+  +expected: string?
+  +actual: string?
+  +coverage_gaps: CoverageGap[]
+}
+
+class "CoverageGap" as Gap {
+  +capability: string
+  +reason: string
+  +first_seq: uint64?
+}
+
+enum SessionStatus {
+  starting
+  running
+  finalizing
+  completed
+  failed
+  interrupted
+  incomplete
+}
+
+Session "1" *-- "0..*" Event
+Event "1" *-- "1" Body
+Session "1" *-- "1..*" Capability
+Session "1" o-- "0..*" Gap
+Session "1" o-- "0..*" Risk
+Risk "0..*" --> "1..*" Body : evidence_seq
+Session "1" o-- "0..1" Manifest
+Manifest "1" *-- "1..*" Artifact
+Verify "1" --> "1" Session
+Verify "1" --> "0..1" Body : first bad event
+Verify "1" --> "0..1" Artifact : first bad artifact
+@enduml
+
+@startuml AFR_07_Plugin_Sequence
+title v0.1 薄插件与 v0.2 Hook 增强时序
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+autonumber
+
+actor "开发者" as User
+participant "Codex / Claude\nPlugin Skill" as Skill
+participant "afr CLI" as AFR
+participant "Agent Host" as Host
+participant "Host Hook Dispatcher\nP2" as Hooks
+participant "afr hook\nP2" as HookCLI
+database "Session Store" as Store
+
+group v0.1：skill 只启动新的 wrapper 会话
+  User -> Skill : 请求记录一个任务
+  Skill -> AFR : afr version / PATH check
+  alt CLI 缺失或版本不兼容
+    AFR --> Skill : 稳定错误
+    Skill --> User : 安装/升级指引\n不声称已记录
+  else CLI 可用
+    Skill -> User : 明示“将启动新的被记录任务”
+    Skill -> AFR : afr run -- host non-interactive argv[]
+    AFR -> Host : spawn child host
+    Host --> AFR : stdout/stderr/exit
+    AFR -> Store : L1 + workspace + policy
+    AFR --> Skill : session ID / report / exit
+    Skill --> User : 复核入口
+  end
+end
+
+group v0.2：只有真实证据缺口触发 Hook
+  Host -> Hooks : SessionStart / Prompt / Tool / Permission / Stop
+  Hooks -> HookCLI : 正式 JSON stdin\n继承或映射 AFR_SESSION_ID
+  HookCLI -> HookCLI : 脱敏 + 会话锁 + seq/hash
+  HookCLI -> Store : 追加 native event
+  HookCLI --> Hooks : exit 0 / stdout empty\n记录失败默认 fail-open
+
+  alt 外层 wrapper 已设置合法 AFR_SESSION_ID
+    note over HookCLI,Store
+      L2 事件并入同一 L1 会话，
+      不产生重复 session。
+    end note
+  else plugin-only 当前会话
+    note over HookCLI,Store
+      映射 host session；报告明确没有
+      完整进程输出能力。
+    end note
+  end
+
+  alt Codex Stop（无可靠 SessionEnd）
+    Hooks -> HookCLI : Stop
+    HookCLI -> Store : refresh + status=idle
+  else Claude Code SessionEnd
+    Hooks -> HookCLI : SessionEnd
+    HookCLI -> Store : quick finalize status=completed
+  end
+end
+@enduml
+
+@startuml AFR_08_Deployment
+title 构建、插件打包与本地部署
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+
+artifact "Go Source" as Source
+artifact "afr.exe\nWindows x64 v0.1" as WinBin #D9EAF7
+artifact "afr\nLinux/macOS beta" as UnixBin #F2F2F2
+
+folder "Shared Plugin Root" as PluginRoot {
+  artifact ".codex-plugin/plugin.json" as CodexManifest
+  artifact ".claude-plugin/plugin.json" as ClaudeManifest
+  artifact "skills/afr/SKILL.md" as SharedSkill
+  artifact "hooks/hooks.json\nP2" as CodexHooks
+  artifact "hooks/hooks.claude.json\nP2" as ClaudeHooks
+}
+
+cloud "Codex Marketplace / Local Source" as CodexMarket
+cloud "Claude Marketplace / --plugin-dir" as ClaudeMarket
+
+node "Developer Windows Machine" as Machine {
+  component "afr.exe on PATH" as InstalledCLI
+  component "Codex" as InstalledCodex
+  component "Claude Code" as InstalledClaude
+  database "~/.afr/sessions" as SessionStore
+  component "Local Browser" as Browser
+}
+
+Source --> WinBin : go build + version metadata
+Source ..> UnixBin : same source / beta builds
+WinBin --> InstalledCLI : install/copy
+PluginRoot --> CodexMarket
+PluginRoot --> ClaudeMarket
+CodexMarket --> InstalledCodex : install/enable
+ClaudeMarket --> InstalledClaude : install/enable
+SharedSkill ..> InstalledCLI : invokes
+InstalledCodex ..> InstalledCLI : skill / optional hook
+InstalledClaude ..> InstalledCLI : skill / optional hook
+InstalledCLI --> SessionStore : one AFR format
+SessionStore --> Browser : offline report.html
+
+note bottom of PluginRoot
+  先验证两个宿主能否共用同一根。
+  只有真实 validator/loader 失败才拆发布包；
+  skill 与 CLI 始终只有一个业务来源。
+end note
+
+note right of SessionStore
+  插件升级、禁用、卸载
+  不删除历史会话。
+end note
+@enduml
+
+@startuml AFR_09_Verify_Sequence
+title afr verify 流式完整性校验
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+autonumber
+
+actor "用户 / CI" as User
+participant "afr verify" as Verify
+database "session.json" as Session
+database "events.jsonl" as Events
+database "manifest.json" as Manifest
+collections "evidence / derived artifacts" as Artifacts
+
+User -> Verify : afr verify <session|latest> [--json]
+Verify -> Session : read + validate format/status
+Session --> Verify : session_id / final_hash / capabilities
+Verify -> Events : open streaming reader
+
+loop 每个完整 LF 事件行
+  Events --> Verify : raw envelope + exact body bytes
+  Verify -> Verify : 校验 format / seq 连续\nprev_hash / current hash
+end
+
+alt 存在 torn tail
+  Events --> Verify : final non-LF bytes
+  Verify -> Verify : status=incomplete\n记录 size/hash，不截断
+else 完整事件流
+  Verify -> Verify : 比较 session final_event_hash
+end
+
+Verify -> Manifest : read evidence/derived lists
+Manifest --> Verify : sorted relative paths + size/hash
+
+loop 每个 artifact
+  Verify -> Artifacts : stream SHA-256 / size
+  Artifacts --> Verify : actual metadata
+  Verify -> Verify : compare expected vs actual
+end
+
+alt 首个事件或制品异常
+  Verify --> User : exit 2 + first_bad_seq/path\nexpected/actual
+else incomplete 但有效前缀一致
+  Verify --> User : 明确 incomplete + coverage gap
+else 全部通过
+  Verify --> User : exit 0 + verified final hash
+end
+@enduml
+
+@startgantt
+title AFR 路线图（1 名全职开发者估算）
+
+Project starts 2026-07-21
+saturday are closed
+sunday are closed
+
+[Phase 0 契约冻结] as [F0] lasts 2 days
+[M0 记录闭环] as [M0] lasts 5 days
+[M0] starts at [F0]'s end
+[M1 工作区证据] as [M1] lasts 5 days
+[M1] starts at [M0]'s end
+[两周停止门槛] as [Gate2] happens at [M1]'s end
+[M2 隐私与完整性] as [M2] lasts 5 days
+[M2] starts at [M1]'s end
+[M3 报告 / Windows / 薄插件] as [M3] lasts 5 days
+[M3] starts at [M2]'s end
+[CLI + 薄插件 v0.1] as [V01] happens at [M3]'s end
+
+-- 仅在真实证据缺口触发 --
+[M4 Hook 合约与 afr hook] as [H0] lasts 5 days
+[H0] starts at [V01]'s end
+[Codex Hook 适配] as [C1] lasts 4 days
+[C1] starts at [H0]'s end
+[Claude Code Hook 适配] as [H1] lasts 4 days
+[H1] starts at [H0]'s end
+[Hook v0.2] as [V02] happens at [C1]'s end
+
+@endgantt
