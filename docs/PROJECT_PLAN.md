@@ -386,6 +386,8 @@ L1 的 before/after 只能证明工作区内变化。只有命令参数或原生
 
 风险结果必须包含 `rule_version`、`evidence_seq[]`、事实、解释、严重级别和建议；事实与判断分开。
 
+v0.1 的 `workspace.bulk_change` 规则版本为 1，本次 session delta 达到 100 个文件时触发；pre-existing 文件不计入阈值。
+
 ## 10. 离线报告
 
 ### 10.1 三个视图

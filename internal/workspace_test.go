@@ -268,7 +268,7 @@ func TestGenerateWorkspacePatchRedactsAndBoundsEvidence(t *testing.T) {
 	if !bytes.Contains(patch, []byte("[REDACTED:")) || bytes.Contains(patch, []byte(secret)) || !bytes.Contains(patch, []byte("new text")) || !bytes.Contains(patch, []byte("Binary files")) {
 		t.Fatalf("patch=%s", patch)
 	}
-	if summary.Truncated || summary.Error != "" || len(summary.Fingerprint) != 64 || !strings.Contains(string(patch), "AFR omitted lfs: asset.lfs") || !strings.Contains(string(patch), "AFR omitted pre_existing: preexisting.txt") || bytes.Contains(patch, []byte("dirty again")) {
+	if summary.Truncated || summary.Error != "" || len(summary.Fingerprint) != 64 || len(summary.Redactions) == 0 || !strings.Contains(string(patch), "AFR omitted lfs: asset.lfs") || !strings.Contains(string(patch), "AFR omitted pre_existing: preexisting.txt") || bytes.Contains(patch, []byte("dirty again")) {
 		t.Fatalf("summary=%+v patch=%s", summary, patch)
 	}
 

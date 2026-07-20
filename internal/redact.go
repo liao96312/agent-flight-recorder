@@ -44,31 +44,50 @@ func NewRedactor(fingerprinter *Fingerprinter) (*Redactor, error) {
 }
 
 func (redactor *Redactor) Text(text string) string {
-	for _, detector := range secretDetectors {
-		text = detector.pattern.ReplaceAllStringFunc(text, func(secret string) string {
-			return redactor.placeholder(detector.name, secret)
-		})
-	}
+	text, _ = redactor.TextWithKinds(text)
 	return text
 }
 
+func (redactor *Redactor) TextWithKinds(text string) (string, []string) {
+	kinds := []string{}
+	for _, detector := range secretDetectors {
+		text = detector.pattern.ReplaceAllStringFunc(text, func(secret string) string {
+			kinds = append(kinds, detector.name)
+			return redactor.placeholder(detector.name, secret)
+		})
+	}
+	sort.Strings(kinds)
+	return text, compactStrings(kinds)
+}
+
 func (redactor *Redactor) Argv(argv []string) []string {
+	result, _ := redactor.ArgvWithKinds(argv)
+	return result
+}
+
+func (redactor *Redactor) ArgvWithKinds(argv []string) ([]string, []string) {
 	result := make([]string, len(argv))
+	kinds := []string{}
 	sensitiveNext := false
 	for index, argument := range argv {
 		if sensitiveNext {
 			result[index] = redactor.placeholder("argv", argument)
+			kinds = append(kinds, "argv")
 			sensitiveNext = false
 			continue
 		}
 		if name, value, found := strings.Cut(argument, "="); found && sensitiveFlag(name) {
 			result[index] = name + "=" + redactor.placeholder("argv", value)
+			kinds = append(kinds, "argv")
 			continue
 		}
-		result[index] = redactor.Text(argument)
-		sensitiveNext = sensitiveFlag(argument)
+		var detected []string
+		result[index], detected = redactor.TextWithKinds(argument)
+		kinds = append(kinds, detected...)
+		sensitiveNext = (strings.HasPrefix(argument, "-") || strings.HasPrefix(argument, "/")) && sensitiveFlag(argument)
 	}
-	return result
+	sort.Strings(kinds)
+	return result, compactStrings(kinds)
 }
 
 func (redactor *Redactor) EnvironmentNames(environment []string) []string {
@@ -148,6 +167,7 @@ type RedactedRecord struct {
 	Bytes         int
 	OmittedReason string
 	Fingerprint   string
+	Redactions    []string
 }
 
 type RecordAccumulator struct {
@@ -239,8 +259,11 @@ func (accumulator *RecordAccumulator) finish(reason string) RedactedRecord {
 	if reason != "" {
 		record.OmittedReason = reason
 		record.Fingerprint = fmt.Sprintf("%x", accumulator.fingerprint.Sum(nil))
+		if accumulator.privateKey {
+			record.Redactions = []string{"private_key"}
+		}
 	} else {
-		record.Text = accumulator.redactor.Text(ansiPattern.ReplaceAllString(string(trimmed), ""))
+		record.Text, record.Redactions = accumulator.redactor.TextWithKinds(ansiPattern.ReplaceAllString(string(trimmed), ""))
 	}
 	accumulator.reset()
 	return record

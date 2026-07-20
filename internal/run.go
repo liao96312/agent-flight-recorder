@@ -86,19 +86,28 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 	if err != nil {
 		return result, err
 	}
+	riskSet := NewRiskSet()
 	before := CollectWorkspace(workspace, options.SessionsRoot, fingerprinter, options.ScanLimits)
 	session.Meta.Capabilities = WorkspaceCapabilities(before)
-	if _, err := writer.Append("session_started", "afr", map[string]any{
+	redactedArgv, argvRedactions := redactor.ArgvWithKinds(argv)
+	sessionStartedSeq, err := writer.Append("session_started", "afr", map[string]any{
 		"session_id":        session.Meta.ID,
 		"workspace":         workspace,
 		"command":           filepath.Base(argv[0]),
 		"arg_count":         len(argv) - 1,
-		"argv_redacted":     redactor.Argv(argv),
+		"argv_redacted":     redactedArgv,
 		"environment_names": redactor.EnvironmentNames(os.Environ()),
 		"capabilities":      session.Meta.Capabilities,
-	}, true); err != nil {
+	}, true)
+	if err != nil {
 		_ = writer.Close()
 		return result, err
+	}
+	if finding, found := CommandRisk(argv, sessionStartedSeq); found {
+		riskSet.Add(finding)
+	}
+	if finding, found := SensitiveRisk("argv", argvRedactions, sessionStartedSeq); found {
+		riskSet.Add(finding)
 	}
 	if err := WriteWorkspaceArtifact(session.Root, "workspace-before.json", before, redactor); err != nil {
 		return finishSetupFailure(session, writer, result, "workspace_baseline", err)
@@ -175,7 +184,12 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 				payload["omitted_reason"] = record.OmittedReason
 				payload["fingerprint"] = record.Fingerprint
 			}
-			_, err := writer.Append("process_output", "process", payload, false)
+			seq, err := writer.Append("process_output", "process", payload, false)
+			if err == nil {
+				if finding, found := SensitiveRisk(state.stream, record.Redactions, seq); found {
+					riskSet.Add(finding)
+				}
+			}
 			return err
 		}
 		for {
@@ -285,7 +299,7 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		_ = writer.Close()
 		return result, err
 	}
-	if _, err := writer.Append("workspace_final", "workspace", map[string]any{
+	workspaceFinalSeq, err := writer.Append("workspace_final", "workspace", map[string]any{
 		"mode":      after.Mode,
 		"partial":   delta.Partial,
 		"added":     len(delta.Added),
@@ -293,10 +307,18 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		"deleted":   len(delta.Deleted),
 		"renamed":   len(delta.Renamed),
 		"artifacts": []string{"snapshots/workspace-after.json", "snapshots/workspace-delta.json", "diffs/workspace.patch"},
-	}, true); err != nil {
+	}, true)
+	if err != nil {
 		_ = writer.Close()
 		return result, err
 	}
+	if finding, found := BulkChangeRisk(delta, workspaceFinalSeq); found {
+		riskSet.Add(finding)
+	}
+	if finding, found := SensitiveRisk("workspace patch", patch.Redactions, workspaceFinalSeq); found {
+		riskSet.Add(finding)
+	}
+	findings := riskSet.Findings()
 	if _, err := writer.Append("process_exited", "process", map[string]any{
 		"exit_code":   exitCode,
 		"termination": termination,
@@ -305,9 +327,17 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		_ = writer.Close()
 		return result, err
 	}
+	for _, finding := range findings {
+		if _, err := writer.Append("risk_found", "policy", finding, true); err != nil {
+			_ = writer.Close()
+			return result, err
+		}
+	}
 	if _, err := writer.Append("session_finished", "afr", map[string]any{
 		"state":         "completed",
 		"child_success": exitCode == 0,
+		"risk_count":    len(findings),
+		"highest_risk":  highestSeverity(findings),
 	}, true); err != nil {
 		_ = writer.Close()
 		return result, err

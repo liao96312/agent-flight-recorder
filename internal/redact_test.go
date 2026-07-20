@@ -52,9 +52,9 @@ func TestRecursiveMarshalRedactsPathsErrorsAndKeys(t *testing.T) {
 
 func TestArgvRedactionPreservesChildBoundary(t *testing.T) {
 	redactor := testRedactor(t)
-	original := []string{"agent", "--token", "small", "--password=hunter2", "plain"}
+	original := []string{"agent", "--token", "small", "--password=hunter2", "password policy", "plain"}
 	redacted := redactor.Argv(original)
-	if original[2] != "small" || redacted[2] == "small" || strings.Contains(redacted[3], "hunter2") || redacted[4] != "plain" {
+	if original[2] != "small" || redacted[2] == "small" || strings.Contains(redacted[3], "hunter2") || redacted[4] != "password policy" || redacted[5] != "plain" {
 		t.Fatalf("original=%v redacted=%v", original, redacted)
 	}
 }

@@ -27,6 +27,7 @@ type WorkspacePatchSummary struct {
 	TotalBytes  int64           `json:"total_bytes"`
 	Fingerprint string          `json:"fingerprint"`
 	Truncated   bool            `json:"truncated"`
+	Redactions  []string        `json:"redactions,omitempty"`
 	Error       string          `json:"error,omitempty"`
 }
 
@@ -117,6 +118,7 @@ func GenerateWorkspacePatch(workspace, sessionRoot string, before, after Workspa
 	for _, omitted := range summary.Omitted {
 		body += fmt.Sprintf("# AFR omitted %s: %s\n", omitted.Reason, omitted.Path)
 	}
+	_, summary.Redactions = redactor.TextWithKinds(body)
 	return summary, writePatchResult(sessionRoot, summary, body, redactor)
 }
 

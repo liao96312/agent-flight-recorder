@@ -15,4 +15,4 @@ go build ./cmd/fake-agent
 
 唯一非标准库依赖是官方 `golang.org/x/sys/windows`，用于 Job Object；Unix 使用标准库 `syscall` 进程组。
 
-安全边界：当前 session、events、workspace JSON 和 patch 共用强制写盘前脱敏入口。stdout/stderr 以有界逻辑记录处理；secret 会替换为会话级 HMAC 占位符，二进制、未知编码、超长记录和超限 Diff 只保存元数据。规则、报告、验证和插件仍按 [TODO](./docs/TODO.md) 继续实现。
+安全边界：当前 session、events、workspace JSON 和 patch 共用强制写盘前脱敏入口。stdout/stderr 以有界逻辑记录处理；secret 会替换为会话级 HMAC 占位符，二进制、未知编码、超长记录和超限 Diff 只保存元数据。当前会对可见的破坏性命令、敏感信息和大规模 workspace delta 生成 `risk_found`；报告、验证和插件仍按 [TODO](./docs/TODO.md) 继续实现。

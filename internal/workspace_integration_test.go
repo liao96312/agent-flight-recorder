@@ -170,6 +170,7 @@ func TestRunLeavesNoPlaintextSecretInSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	foundPlaceholder := false
+	foundSensitiveRisk := false
 	err = filepath.Walk(result.SessionDir, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil || info.IsDir() {
 			return walkErr
@@ -184,6 +185,9 @@ func TestRunLeavesNoPlaintextSecretInSession(t *testing.T) {
 		if bytes.Contains(data, []byte("[REDACTED:")) {
 			foundPlaceholder = true
 		}
+		if bytes.Contains(data, []byte(`"type":"risk_found"`)) && bytes.Contains(data, []byte(`"rule_id":"content.sensitive"`)) {
+			foundSensitiveRisk = true
+		}
 		return nil
 	})
 	if err != nil {
@@ -191,6 +195,9 @@ func TestRunLeavesNoPlaintextSecretInSession(t *testing.T) {
 	}
 	if !foundPlaceholder {
 		t.Fatal("redaction placeholder missing from session")
+	}
+	if !foundSensitiveRisk {
+		t.Fatal("sensitive evidence did not produce a redacted risk finding")
 	}
 }
 
