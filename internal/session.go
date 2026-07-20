@@ -149,10 +149,6 @@ func safeJoin(root, relative string) (string, error) {
 }
 
 func atomicWriteJSON(root, relative string, value any, redactor *Redactor) error {
-	target, err := safeJoin(root, relative)
-	if err != nil {
-		return err
-	}
 	if redactor == nil {
 		return errors.New("persistent JSON requires a redactor")
 	}
@@ -161,6 +157,21 @@ func atomicWriteJSON(root, relative string, value any, redactor *Redactor) error
 		return fmt.Errorf("encode %s: %w", relative, err)
 	}
 	data = append(data, '\n')
+	return atomicWriteBytes(root, relative, data)
+}
+
+func atomicWriteRedactedText(root, relative, text string, redactor *Redactor) error {
+	if redactor == nil {
+		return errors.New("persistent text requires a redactor")
+	}
+	return atomicWriteBytes(root, relative, []byte(redactor.Text(text)))
+}
+
+func atomicWriteBytes(root, relative string, data []byte) error {
+	target, err := safeJoin(root, relative)
+	if err != nil {
+		return err
+	}
 	tmp, err := os.CreateTemp(filepath.Dir(target), ".afr-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create temporary %s: %w", relative, err)

@@ -85,14 +85,15 @@ type RenameEvidence struct {
 }
 
 type WorkspaceDelta struct {
-	FormatVersion   int              `json:"format_version"`
-	Added           []string         `json:"added"`
-	Modified        []string         `json:"modified"`
-	Deleted         []string         `json:"deleted"`
-	Renamed         []RenameEvidence `json:"renamed"`
-	PreExisting     []string         `json:"pre_existing"`
-	Partial         bool             `json:"partial"`
-	OmissionReasons []string         `json:"omission_reasons,omitempty"`
+	FormatVersion   int                   `json:"format_version"`
+	Added           []string              `json:"added"`
+	Modified        []string              `json:"modified"`
+	Deleted         []string              `json:"deleted"`
+	Renamed         []RenameEvidence      `json:"renamed"`
+	PreExisting     []string              `json:"pre_existing"`
+	Partial         bool                  `json:"partial"`
+	OmissionReasons []string              `json:"omission_reasons,omitempty"`
+	Patch           WorkspacePatchSummary `json:"patch"`
 }
 
 func WriteWorkspaceArtifact(sessionRoot, name string, value any, redactor *Redactor) error {

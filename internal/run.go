@@ -267,6 +267,15 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 	}
 	after := CollectWorkspace(workspace, options.SessionsRoot, fingerprinter, options.ScanLimits)
 	delta := CompareWorkspace(before, after)
+	patch, patchErr := GenerateWorkspacePatch(workspace, session.Root, before, after, delta, fingerprinter, redactor, defaultDiffLimit)
+	if patchErr != nil {
+		_ = writer.Close()
+		return result, patchErr
+	}
+	delta.Patch = patch
+	if patch.Error != "" {
+		after.Git.Error = patch.Error
+	}
 	session.Meta.Capabilities = WorkspaceCapabilities(after)
 	if err := WriteWorkspaceArtifact(session.Root, "workspace-after.json", after, redactor); err != nil {
 		_ = writer.Close()
@@ -283,7 +292,7 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		"modified":  len(delta.Modified),
 		"deleted":   len(delta.Deleted),
 		"renamed":   len(delta.Renamed),
-		"artifacts": []string{"snapshots/workspace-after.json", "snapshots/workspace-delta.json"},
+		"artifacts": []string{"snapshots/workspace-after.json", "snapshots/workspace-delta.json", "diffs/workspace.patch"},
 	}, true); err != nil {
 		_ = writer.Close()
 		return result, err
