@@ -1,7 +1,9 @@
 package afr
 
 import (
+	"path/filepath"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -54,5 +56,39 @@ func TestBulkChangeRiskUsesSessionDeltaThreshold(t *testing.T) {
 	finding, found := BulkChangeRisk(WorkspaceDelta{Added: make([]string, bulkChangeThreshold)}, 3)
 	if !found || finding.RuleVersion != 1 || finding.Severity != "medium" {
 		t.Fatalf("finding=%+v", finding)
+	}
+}
+
+func TestObservableBoundaryRulesRequireVisibleTargets(t *testing.T) {
+	workspace := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "target.txt")
+	findings := ObservableBoundaryRisks(workspace, []string{"tool", "--output=" + outside}, 11)
+	if len(findings) != 1 || findings[0].RuleID != "boundary.path_outside_workspace" || !reflect.DeepEqual(findings[0].EvidenceSeq, []uint64{11}) {
+		t.Fatalf("outside findings=%+v", findings)
+	}
+	inside := filepath.Join(workspace, "target.txt")
+	if findings := ObservableBoundaryRisks(workspace, []string{"tool", inside}, 11); len(findings) != 0 {
+		t.Fatalf("inside path flagged: %+v", findings)
+	}
+
+	findings = ObservableBoundaryRisks(workspace, []string{"sudo", "tool"}, 12)
+	if len(findings) != 1 || findings[0].RuleID != "permission.elevation_requested" {
+		t.Fatalf("elevation findings=%+v", findings)
+	}
+	findings = ObservableBoundaryRisks(workspace, []string{"curl", "https://user:pass@example.invalid/upload"}, 13)
+	if len(findings) != 1 || findings[0].RuleID != "network.target_visible" || !slices.Contains(findings[0].Observed, "visible network target: example.invalid") {
+		t.Fatalf("network findings=%+v", findings)
+	}
+	if findings := ObservableBoundaryRisks(workspace, []string{"echo", "https://example.invalid"}, 14); len(findings) != 0 {
+		t.Fatalf("quoted URL flagged as network activity: %+v", findings)
+	}
+}
+
+func TestCapabilitiesKeepSystemMonitoringNotObservable(t *testing.T) {
+	capabilities := WorkspaceCapabilities(WorkspaceSnapshot{})
+	for _, expected := range []string{"local_policy=observed", "os_file_monitor=not_observable", "network_monitor=not_observable"} {
+		if !slices.Contains(capabilities, expected) {
+			t.Fatalf("missing %q in %v", expected, capabilities)
+		}
 	}
 }

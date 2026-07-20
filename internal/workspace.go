@@ -117,7 +117,7 @@ func WorkspaceCapabilities(snapshot WorkspaceSnapshot) []string {
 		gitCapability,
 		"workspace_scan=observed",
 		"native_tool_events=not_observable",
-		"local_policy=not_observable",
+		"local_policy=observed",
 		"os_file_monitor=not_observable",
 		"network_monitor=not_observable",
 	}

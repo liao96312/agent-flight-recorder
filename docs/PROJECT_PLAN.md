@@ -388,6 +388,8 @@ L1 的 before/after 只能证明工作区内变化。只有命令参数或原生
 
 v0.1 的 `workspace.bulk_change` 规则版本为 1，本次 session delta 达到 100 个文件时触发；pre-existing 文件不计入阈值。
 
+越界路径、提权请求和网络目标规则只读取 AFR 直接收到的 argv；即使命中规则，`os_file_monitor` 与 `network_monitor` 仍标记为 `not_observable`，不把请求语法等同于实际系统行为。
+
 ## 10. 离线报告
 
 ### 10.1 三个视图
