@@ -33,7 +33,7 @@ func TestAtomicWriteFailureLeavesNoTemporaryFile(t *testing.T) {
 	if err := os.Mkdir(target, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := atomicWriteJSON(root, "occupied", map[string]string{"x": "y"}); err == nil {
+	if err := atomicWriteJSON(root, "occupied", map[string]string{"x": "y"}, testRedactor(t)); err == nil {
 		t.Fatal("write over directory succeeded")
 	}
 	entries, err := os.ReadDir(root)

@@ -3,7 +3,6 @@ package afr
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -33,8 +32,9 @@ type SessionMetadata struct {
 }
 
 type Session struct {
-	Root string
-	Meta SessionMetadata
+	Root     string
+	Meta     SessionMetadata
+	redactor *Redactor
 }
 
 func DefaultSessionsRoot() (string, error) {
@@ -45,9 +45,12 @@ func DefaultSessionsRoot() (string, error) {
 	return filepath.Join(home, ".afr", "sessions"), nil
 }
 
-func NewSession(sessionsRoot, workspace string, argv []string) (*Session, error) {
+func NewSession(sessionsRoot, workspace string, argv []string, redactor *Redactor) (*Session, error) {
 	if len(argv) == 0 {
 		return nil, errors.New("empty command")
+	}
+	if redactor == nil {
+		return nil, errors.New("session requires a redactor")
 	}
 	if err := os.MkdirAll(sessionsRoot, 0o700); err != nil {
 		return nil, fmt.Errorf("create sessions root: %w", err)
@@ -80,7 +83,7 @@ func NewSession(sessionsRoot, workspace string, argv []string) (*Session, error)
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	s := &Session{Root: root, Meta: SessionMetadata{
+	s := &Session{Root: root, redactor: redactor, Meta: SessionMetadata{
 		FormatVersion: 1,
 		ID:            id,
 		State:         "starting",
@@ -101,7 +104,7 @@ func NewSession(sessionsRoot, workspace string, argv []string) (*Session, error)
 	s.Meta.FlushPolicy.Bytes = flushBytes
 	s.Meta.FlushPolicy.IntervalMS = int(flushInterval / time.Millisecond)
 	s.Meta.FlushPolicy.CriticalSync = true
-	if err := atomicWriteJSON(root, "session.json", s.Meta); err != nil {
+	if err := atomicWriteJSON(root, "session.json", s.Meta, redactor); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -113,7 +116,7 @@ func (s *Session) Finish(state string, exitCode *int, seq uint64, finalHash stri
 	s.Meta.ChildExitCode = exitCode
 	s.Meta.FinalEventSeq = seq
 	s.Meta.FinalHash = finalHash
-	return atomicWriteJSON(s.Root, "session.json", s.Meta)
+	return atomicWriteJSON(s.Root, "session.json", s.Meta, s.redactor)
 }
 
 func newSessionID(now time.Time) (string, error) {
@@ -145,12 +148,15 @@ func safeJoin(root, relative string) (string, error) {
 	return target, nil
 }
 
-func atomicWriteJSON(root, relative string, value any) error {
+func atomicWriteJSON(root, relative string, value any, redactor *Redactor) error {
 	target, err := safeJoin(root, relative)
 	if err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(value, "", "  ")
+	if redactor == nil {
+		return errors.New("persistent JSON requires a redactor")
+	}
+	data, err := redactor.MarshalIndent(value)
 	if err != nil {
 		return fmt.Errorf("encode %s: %w", relative, err)
 	}

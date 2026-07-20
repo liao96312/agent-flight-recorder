@@ -95,7 +95,7 @@ type WorkspaceDelta struct {
 	OmissionReasons []string         `json:"omission_reasons,omitempty"`
 }
 
-func WriteWorkspaceArtifact(sessionRoot, name string, value any) error {
+func WriteWorkspaceArtifact(sessionRoot, name string, value any, redactor *Redactor) error {
 	directory, err := safeJoin(sessionRoot, "snapshots")
 	if err != nil {
 		return err
@@ -103,7 +103,7 @@ func WriteWorkspaceArtifact(sessionRoot, name string, value any) error {
 	if err := os.Mkdir(directory, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("create snapshot directory: %w", err)
 	}
-	return atomicWriteJSON(sessionRoot, filepath.Join("snapshots", name), value)
+	return atomicWriteJSON(sessionRoot, filepath.Join("snapshots", name), value, redactor)
 }
 
 func WorkspaceCapabilities(snapshot WorkspaceSnapshot) []string {

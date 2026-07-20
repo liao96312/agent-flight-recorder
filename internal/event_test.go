@@ -34,7 +34,7 @@ func TestEventV1GoldenVector(t *testing.T) {
 
 func TestEventWriterHundredThousandChain(t *testing.T) {
 	root := t.TempDir()
-	writer, err := NewEventWriter(root)
+	writer, err := NewEventWriter(root, testRedactor(t))
 	if err != nil {
 		t.Fatal(err)
 	}

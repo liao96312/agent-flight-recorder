@@ -9,7 +9,7 @@ import (
 
 func TestInspectEventsPreservesTornTail(t *testing.T) {
 	root := t.TempDir()
-	writer, err := NewEventWriter(root)
+	writer, err := NewEventWriter(root, testRedactor(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,11 +41,12 @@ func TestInspectEventsPreservesTornTail(t *testing.T) {
 
 func TestListInfersIncompleteWithoutWriting(t *testing.T) {
 	sessions := filepath.Join(t.TempDir(), "sessions")
-	session, err := NewSession(sessions, t.TempDir(), []string{"agent"})
+	redactor := testRedactor(t)
+	session, err := NewSession(sessions, t.TempDir(), []string{"agent"}, redactor)
 	if err != nil {
 		t.Fatal(err)
 	}
-	writer, err := NewEventWriter(session.Root)
+	writer, err := NewEventWriter(session.Root, redactor)
 	if err != nil {
 		t.Fatal(err)
 	}

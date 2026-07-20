@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -42,9 +43,13 @@ type EventWriter struct {
 	pending   int
 	lastFlush time.Time
 	closed    bool
+	redactor  *Redactor
 }
 
-func NewEventWriter(sessionRoot string) (*EventWriter, error) {
+func NewEventWriter(sessionRoot string, redactor *Redactor) (*EventWriter, error) {
+	if redactor == nil {
+		return nil, errors.New("event writer requires a redactor")
+	}
 	path, err := safeJoin(sessionRoot, "events.jsonl")
 	if err != nil {
 		return nil, err
@@ -54,7 +59,7 @@ func NewEventWriter(sessionRoot string) (*EventWriter, error) {
 		return nil, fmt.Errorf("create events: %w", err)
 	}
 	now := time.Now()
-	return &EventWriter{file: file, buffer: bufio.NewWriterSize(file, flushBytes), started: now, lastFlush: now}, nil
+	return &EventWriter{file: file, buffer: bufio.NewWriterSize(file, flushBytes), started: now, lastFlush: now, redactor: redactor}, nil
 }
 
 func (w *EventWriter) Append(eventType, source string, payload any, critical bool) (uint64, error) {
@@ -63,7 +68,7 @@ func (w *EventWriter) Append(eventType, source string, payload any, critical boo
 	if w.closed {
 		return 0, os.ErrClosed
 	}
-	payloadBytes, err := json.Marshal(payload)
+	payloadBytes, err := w.redactor.Marshal(payload)
 	if err != nil {
 		return 0, fmt.Errorf("encode event payload: %w", err)
 	}
@@ -71,8 +76,8 @@ func (w *EventWriter) Append(eventType, source string, payload any, critical boo
 		Seq:       w.seq + 1,
 		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
 		ElapsedNS: time.Since(w.started).Nanoseconds(),
-		Type:      eventType,
-		Source:    source,
+		Type:      w.redactor.Text(eventType),
+		Source:    w.redactor.Text(source),
 		Payload:   payloadBytes,
 	}
 	line, hash, err := encodeEvent(w.prevHash, body)

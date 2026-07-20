@@ -3,6 +3,7 @@ package afr
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -132,6 +133,64 @@ func TestWorkspaceSymlinkOutsideIsNotFollowed(t *testing.T) {
 	snapshot := CollectWorkspace(root, "", fingerprinter, ScanLimits{})
 	if len(snapshot.Files) != 1 || snapshot.Files[0].Type != "symlink" || !snapshot.Files[0].TargetOutside {
 		t.Fatalf("snapshot=%+v", snapshot)
+	}
+}
+
+func TestRunLeavesNoPlaintextSecretInSession(t *testing.T) {
+	const secret = "supersecretvalue"
+	if os.Getenv("AFR_TEST_SECRET_CHILD") == "1" {
+		foundArg := false
+		for _, argument := range os.Args {
+			if argument == secret {
+				foundArg = true
+			}
+		}
+		if !foundArg {
+			os.Exit(9)
+		}
+		fmt.Fprintln(os.Stdout, "password="+secret)
+		fmt.Fprintln(os.Stderr, "Bearer "+secret+"abcdefghijkl")
+		root := os.Getenv("AFR_TEST_SECRET_ROOT")
+		_ = os.WriteFile(filepath.Join(root, "token="+secret+".txt"), []byte(secret), 0o600)
+		os.Exit(0)
+	}
+	base := t.TempDir()
+	workspace := filepath.Join(base, "password="+secret)
+	if err := os.Mkdir(workspace, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AFR_TEST_SECRET_CHILD", "1")
+	t.Setenv("AFR_TEST_SECRET_ROOT", workspace)
+	t.Setenv("AFR_SECRET_ENV", secret)
+	result, err := Run(RunOptions{
+		SessionsRoot: filepath.Join(t.TempDir(), "sessions"),
+		Workspace:    workspace,
+	}, []string{os.Args[0], "-test.run=TestRunLeavesNoPlaintextSecretInSession", "--", "--token", secret})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundPlaceholder := false
+	err = filepath.Walk(result.SessionDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil || info.IsDir() {
+			return walkErr
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if bytes.Contains(data, []byte(secret)) {
+			t.Errorf("plaintext secret in %s", path)
+		}
+		if bytes.Contains(data, []byte("[REDACTED:")) {
+			foundPlaceholder = true
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !foundPlaceholder {
+		t.Fatal("redaction placeholder missing from session")
 	}
 }
 
