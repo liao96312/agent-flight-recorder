@@ -352,14 +352,7 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 	if err := session.Finish("completed", &exitCode, seq, hash); err != nil {
 		return result, err
 	}
-	if err := WriteManifest(session.Root, session.Meta.ID, []string{
-		"diffs/workspace.patch",
-		"events.jsonl",
-		"session.json",
-		"snapshots/workspace-after.json",
-		"snapshots/workspace-before.json",
-		"snapshots/workspace-delta.json",
-	}, nil, redactor); err != nil {
+	if err := WriteManifest(session.Root, session.Meta.ID, requiredEvidencePaths, nil, redactor); err != nil {
 		return result, err
 	}
 	captureMu.Lock()

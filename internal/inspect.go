@@ -31,14 +31,34 @@ type SessionSummary struct {
 	TornTailBytes int    `json:"torn_tail_bytes,omitempty"`
 }
 
+const maxEventLineBytes = 8 * 1024 * 1024
+
 func InspectEvents(sessionRoot string) (EventInspection, error) {
+	inspection, issue, err := inspectEventStream(sessionRoot)
+	if err != nil {
+		return inspection, err
+	}
+	if issue != nil && issue.Code != "event_torn_tail" {
+		return inspection, errors.New(issue.Message)
+	}
+	return inspection, nil
+}
+
+func inspectEventStream(sessionRoot string) (EventInspection, *VerificationIssue, error) {
 	path, err := safeJoin(sessionRoot, "events.jsonl")
 	if err != nil {
-		return EventInspection{}, err
+		return EventInspection{}, nil, err
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return EventInspection{}, nil, fmt.Errorf("inspect events: %w", err)
+	}
+	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		return EventInspection{}, nil, errors.New("events must be a regular file")
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return EventInspection{}, fmt.Errorf("open events: %w", err)
+		return EventInspection{}, nil, fmt.Errorf("open events: %w", err)
 	}
 	defer file.Close()
 
@@ -46,21 +66,35 @@ func InspectEvents(sessionRoot string) (EventInspection, error) {
 	inspection := EventInspection{}
 	var previous [sha256.Size]byte
 	for {
-		line, readErr := reader.ReadBytes('\n')
+		line, readErr, tooLarge := readBoundedEventLine(reader)
+		if tooLarge {
+			return inspection, &VerificationIssue{Kind: "event", Code: "event_too_large", Seq: inspection.ValidEvents + 1, Path: "events.jsonl", Message: "event exceeds the verification line limit", Expected: fmt.Sprintf("at most %d bytes", maxEventLineBytes), Actual: "larger event"}, nil
+		}
 		if readErr == io.EOF && len(line) > 0 {
 			sum := sha256.Sum256(line)
 			inspection.TornTailBytes = len(line)
 			inspection.TornTailHash = hex.EncodeToString(sum[:])
-			return inspection, nil
+			return inspection, &VerificationIssue{Kind: "event", Code: "event_torn_tail", Seq: inspection.ValidEvents + 1, Path: "events.jsonl", Message: "events file has a torn final record", Expected: "newline-terminated event", Actual: fmt.Sprintf("%d trailing bytes", len(line))}, nil
 		}
 		if len(line) > 0 {
 			raw := bytes.TrimSuffix(line, []byte{'\n'})
 			var envelope eventEnvelope
 			if err := json.Unmarshal(raw, &envelope); err != nil {
-				return inspection, fmt.Errorf("event %d is invalid JSON: %w", inspection.ValidEvents+1, err)
+				return inspection, &VerificationIssue{Kind: "event", Code: "event_invalid_json", Seq: inspection.ValidEvents + 1, Path: "events.jsonl", Message: fmt.Sprintf("event %d is invalid JSON", inspection.ValidEvents+1)}, nil
 			}
-			if envelope.FormatVersion != 1 || envelope.PrevHash != hex.EncodeToString(previous[:]) {
-				return inspection, fmt.Errorf("event %d has invalid version or previous hash", inspection.ValidEvents+1)
+			if envelope.FormatVersion != 1 {
+				return inspection, &VerificationIssue{Kind: "event", Code: "event_version", Seq: inspection.ValidEvents + 1, Path: "events.jsonl", Message: fmt.Sprintf("event %d has unsupported format", inspection.ValidEvents+1), Expected: "1", Actual: fmt.Sprint(envelope.FormatVersion)}, nil
+			}
+			var body EventBody
+			if err := json.Unmarshal(envelope.Body, &body); err != nil {
+				return inspection, &VerificationIssue{Kind: "event", Code: "event_body_invalid", Seq: inspection.ValidEvents + 1, Path: "events.jsonl", Message: fmt.Sprintf("event %d body is invalid", inspection.ValidEvents+1)}, nil
+			}
+			if body.Seq != inspection.ValidEvents+1 {
+				return inspection, &VerificationIssue{Kind: "event", Code: "event_sequence", Seq: inspection.ValidEvents + 1, Path: "events.jsonl", Message: fmt.Sprintf("event %d sequence is invalid", inspection.ValidEvents+1), Expected: fmt.Sprint(inspection.ValidEvents + 1), Actual: fmt.Sprint(body.Seq)}, nil
+			}
+			expectedPrevious := hex.EncodeToString(previous[:])
+			if envelope.PrevHash != expectedPrevious {
+				return inspection, &VerificationIssue{Kind: "event", Code: "event_previous_hash", Seq: body.Seq, Path: "events.jsonl", Message: fmt.Sprintf("event %d previous hash mismatch", body.Seq), Expected: expectedPrevious, Actual: envelope.PrevHash}, nil
 			}
 			h := sha256.New()
 			_, _ = h.Write([]byte("AFR-EVENT-v1\n"))
@@ -69,11 +103,7 @@ func InspectEvents(sessionRoot string) (EventInspection, error) {
 			_, _ = h.Write(envelope.Body)
 			actual := h.Sum(nil)
 			if envelope.Hash != hex.EncodeToString(actual) {
-				return inspection, fmt.Errorf("event %d hash mismatch", inspection.ValidEvents+1)
-			}
-			var body EventBody
-			if err := json.Unmarshal(envelope.Body, &body); err != nil || body.Seq != inspection.ValidEvents+1 {
-				return inspection, fmt.Errorf("event %d has invalid body or sequence", inspection.ValidEvents+1)
+				return inspection, &VerificationIssue{Kind: "event", Code: "event_hash", Seq: body.Seq, Path: "events.jsonl", Message: fmt.Sprintf("event %d hash mismatch", body.Seq), Expected: hex.EncodeToString(actual), Actual: envelope.Hash}, nil
 			}
 			copy(previous[:], actual)
 			inspection.ValidEvents++
@@ -82,10 +112,25 @@ func InspectEvents(sessionRoot string) (EventInspection, error) {
 		}
 		if readErr != nil {
 			if readErr == io.EOF {
-				return inspection, nil
+				return inspection, nil, nil
 			}
-			return inspection, fmt.Errorf("read events: %w", readErr)
+			return inspection, nil, fmt.Errorf("read events: %w", readErr)
 		}
+	}
+}
+
+func readBoundedEventLine(reader *bufio.Reader) ([]byte, error, bool) {
+	line := []byte{}
+	for {
+		fragment, err := reader.ReadSlice('\n')
+		if len(line)+len(fragment) > maxEventLineBytes {
+			return nil, nil, true
+		}
+		line = append(line, fragment...)
+		if errors.Is(err, bufio.ErrBufferFull) {
+			continue
+		}
+		return line, err, false
 	}
 }
 

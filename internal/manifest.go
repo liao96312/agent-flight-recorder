@@ -40,20 +40,30 @@ func manifestEntries(sessionRoot string, paths []string) ([]ManifestEntry, error
 	paths = append([]string(nil), paths...)
 	sort.Strings(paths)
 	entries := make([]ManifestEntry, 0, len(paths))
-	for _, relative := range paths {
+	for index, relative := range paths {
 		if relative == "manifest.json" {
 			return nil, fmt.Errorf("manifest cannot include itself")
+		}
+		if index > 0 && relative == paths[index-1] {
+			return nil, fmt.Errorf("manifest artifact %s is duplicated", relative)
 		}
 		path, err := safeJoin(sessionRoot, relative)
 		if err != nil {
 			return nil, fmt.Errorf("manifest path %q: %w", relative, err)
 		}
+		info, err := os.Lstat(path)
+		if err != nil {
+			return nil, fmt.Errorf("inspect manifest artifact %s: %w", relative, err)
+		}
+		if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("manifest artifact %s is not a regular file", relative)
+		}
 		file, err := os.Open(path)
 		if err != nil {
 			return nil, fmt.Errorf("open manifest artifact %s: %w", relative, err)
 		}
-		info, statErr := file.Stat()
-		if statErr != nil || !info.Mode().IsRegular() {
+		openInfo, statErr := file.Stat()
+		if statErr != nil || !openInfo.Mode().IsRegular() {
 			_ = file.Close()
 			if statErr != nil {
 				return nil, fmt.Errorf("inspect manifest artifact %s: %w", relative, statErr)

@@ -35,6 +35,9 @@ func TestRunCapturesNonGitDelta(t *testing.T) {
 	if !reflect.DeepEqual(delta.Added, []string{"added.txt"}) || !reflect.DeepEqual(delta.Modified, []string{"modify.txt"}) || !reflect.DeepEqual(delta.Renamed, []RenameEvidence{{From: "rename.txt", To: "renamed.txt"}}) || delta.Partial {
 		t.Fatalf("delta=%+v", delta)
 	}
+	if verification := VerifySession(result.SessionDir); !verification.Valid {
+		t.Fatalf("verification=%+v", verification)
+	}
 }
 
 func TestRunSeparatesGitPreExistingChanges(t *testing.T) {

@@ -16,3 +16,9 @@ func TestUsageErrorCreatesNoSession(t *testing.T) {
 		t.Fatalf("usage error created session storage: %v", err)
 	}
 }
+
+func TestVerifyRequiresOneSessionSelector(t *testing.T) {
+	if code := verifyCommand(nil); code != exitUsage {
+		t.Fatalf("exit code = %d, want %d", code, exitUsage)
+	}
+}

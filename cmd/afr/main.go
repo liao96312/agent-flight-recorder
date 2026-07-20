@@ -13,8 +13,9 @@ import (
 const version = "0.1.0-dev"
 
 const (
-	exitUsage = 64
-	exitAFR   = 70
+	exitVerify = 2
+	exitUsage  = 64
+	exitAFR    = 70
 )
 
 func main() {
@@ -38,11 +39,60 @@ func realMain(args []string) int {
 		return runCommand(args[1:])
 	case "list":
 		return listCommand(args[1:])
+	case "verify":
+		return verifyCommand(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "AFR_USAGE: unknown command %q\n", args[0])
 		usage()
 		return exitUsage
 	}
+}
+
+func verifyCommand(args []string) int {
+	flags := flag.NewFlagSet("afr verify", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	asJSON := flags.Bool("json", false, "emit JSON")
+	if err := flags.Parse(args); err != nil {
+		return exitUsage
+	}
+	if flags.NArg() != 1 {
+		fmt.Fprintln(os.Stderr, "AFR_USAGE: verify requires SESSION|latest and optional --json")
+		return exitUsage
+	}
+	sessionsRoot, err := afr.DefaultSessionsRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
+		return exitAFR
+	}
+	sessionRoot, err := afr.ResolveSessionRoot(sessionsRoot, flags.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
+		return exitAFR
+	}
+	result := afr.VerifySession(sessionRoot)
+	if *asJSON {
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(result); err != nil {
+			fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
+			return exitAFR
+		}
+	} else if result.Valid {
+		fmt.Printf("verified %s: %d events, %d evidence, %d derived\n", result.SessionID, result.Events, result.EvidenceChecked, result.DerivedChecked)
+	} else if result.Issue != nil {
+		fmt.Fprintf(os.Stderr, "AFR_VERIFY: %s: %s", result.Issue.Code, result.Issue.Message)
+		if result.Issue.Seq != 0 {
+			fmt.Fprintf(os.Stderr, " (seq %d)", result.Issue.Seq)
+		}
+		if result.Issue.Path != "" {
+			fmt.Fprintf(os.Stderr, " [%s]", result.Issue.Path)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+	if !result.Valid {
+		return exitVerify
+	}
+	return 0
 }
 
 func listCommand(args []string) int {
@@ -118,5 +168,5 @@ func runCommand(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr list [--limit N] [--json]")
+	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr list [--limit N] [--json] | afr verify [--json] SESSION|latest")
 }
