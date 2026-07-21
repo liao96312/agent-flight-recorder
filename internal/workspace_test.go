@@ -1,10 +1,13 @@
 package afr
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -201,5 +204,80 @@ func TestCollectGitStatusMatrix(t *testing.T) {
 	}
 	if paths["staged.txt"].XY[0] == '.' || paths["unstaged.txt"].XY[1] == '.' || paths["renamed.txt"].OriginalPath != "rename.txt" || paths["sub"].Submodule == "N..." {
 		t.Fatalf("status details=%+v", paths)
+	}
+}
+
+func TestGenerateWorkspacePatchRedactsAndBoundsEvidence(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git unavailable")
+	}
+	repo := t.TempDir()
+	for name, content := range map[string][]byte{
+		"tracked.txt":     []byte("before\n"),
+		"preexisting.txt": []byte("clean\n"),
+		"binary.bin":      {0, 1, 2},
+		"asset.lfs":       []byte("old pointer\n"),
+	} {
+		if err := os.WriteFile(filepath.Join(repo, name), content, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runGitFixture(t, git, repo, "init", "-q")
+	runGitFixture(t, git, repo, "add", ".")
+	runGitFixture(t, git, repo, "commit", "-qm", "base")
+	runGitFixture(t, git, repo, "config", "filter.lfs.clean", "cat")
+	runGitFixture(t, git, repo, "config", "filter.lfs.smudge", "cat")
+	runGitFixture(t, git, repo, "config", "filter.lfs.process", "")
+	runGitFixture(t, git, repo, "config", "filter.lfs.required", "false")
+	if err := os.WriteFile(filepath.Join(repo, ".gitattributes"), []byte("*.lfs filter=lfs\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "preexisting.txt"), []byte("dirty before\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fingerprinter, _ := NewFingerprinter()
+	redactor, _ := NewRedactor(fingerprinter)
+	before := CollectWorkspace(repo, "", fingerprinter, ScanLimits{})
+	const secret = "supersecretvalue"
+	for name, content := range map[string][]byte{
+		"tracked.txt":     []byte("password=" + secret + "\n"),
+		"binary.bin":      {0, 9, 8},
+		"asset.lfs":       []byte("lfs-body-" + secret + "\n"),
+		"new.txt":         []byte("new text\n"),
+		"preexisting.txt": []byte("dirty again\n"),
+	} {
+		if err := os.WriteFile(filepath.Join(repo, name), content, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	after := CollectWorkspace(repo, "", fingerprinter, ScanLimits{})
+	delta := CompareWorkspace(before, after)
+	if !slices.Contains(delta.PreExisting, "preexisting.txt") {
+		t.Fatalf("pre-existing changes missing: before=%+v delta=%+v", before.Git, delta)
+	}
+	sessionRoot := t.TempDir()
+	summary, err := GenerateWorkspacePatch(repo, sessionRoot, before, after, delta, fingerprinter, redactor, defaultDiffLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	patch, err := os.ReadFile(filepath.Join(sessionRoot, "diffs", "workspace.patch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(patch, []byte("[REDACTED:")) || bytes.Contains(patch, []byte(secret)) || !bytes.Contains(patch, []byte("new text")) || !bytes.Contains(patch, []byte("Binary files")) {
+		t.Fatalf("patch=%s", patch)
+	}
+	if summary.Truncated || summary.Error != "" || len(summary.Fingerprint) != 64 || len(summary.Redactions) == 0 || !strings.Contains(string(patch), "AFR omitted lfs: asset.lfs") || !strings.Contains(string(patch), "AFR omitted pre_existing: preexisting.txt") || bytes.Contains(patch, []byte("dirty again")) {
+		t.Fatalf("summary=%+v patch=%s", summary, patch)
+	}
+
+	summary, err = GenerateWorkspacePatch(repo, sessionRoot, before, after, delta, fingerprinter, redactor, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	patch, _ = os.ReadFile(filepath.Join(sessionRoot, "diffs", "workspace.patch"))
+	if !summary.Truncated || bytes.Contains(patch, []byte("new text")) || !bytes.Contains(patch, []byte("limit was exceeded")) {
+		t.Fatalf("summary=%+v patch=%s", summary, patch)
 	}
 }

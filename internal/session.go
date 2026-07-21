@@ -3,7 +3,6 @@ package afr
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -21,6 +20,7 @@ type SessionMetadata struct {
 	Workspace     string   `json:"workspace"`
 	Executable    string   `json:"executable"`
 	ArgCount      int      `json:"arg_count"`
+	RecorderPID   int      `json:"recorder_pid,omitempty"`
 	ChildExitCode *int     `json:"child_exit_code,omitempty"`
 	FinalEventSeq uint64   `json:"final_event_seq,omitempty"`
 	FinalHash     string   `json:"final_hash,omitempty"`
@@ -33,8 +33,9 @@ type SessionMetadata struct {
 }
 
 type Session struct {
-	Root string
-	Meta SessionMetadata
+	Root     string
+	Meta     SessionMetadata
+	redactor *Redactor
 }
 
 func DefaultSessionsRoot() (string, error) {
@@ -45,9 +46,12 @@ func DefaultSessionsRoot() (string, error) {
 	return filepath.Join(home, ".afr", "sessions"), nil
 }
 
-func NewSession(sessionsRoot, workspace string, argv []string) (*Session, error) {
+func NewSession(sessionsRoot, workspace string, argv []string, redactor *Redactor) (*Session, error) {
 	if len(argv) == 0 {
 		return nil, errors.New("empty command")
+	}
+	if redactor == nil {
+		return nil, errors.New("session requires a redactor")
 	}
 	if err := os.MkdirAll(sessionsRoot, 0o700); err != nil {
 		return nil, fmt.Errorf("create sessions root: %w", err)
@@ -80,20 +84,21 @@ func NewSession(sessionsRoot, workspace string, argv []string) (*Session, error)
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	s := &Session{Root: root, Meta: SessionMetadata{
-		FormatVersion: 1,
+	s := &Session{Root: root, redactor: redactor, Meta: SessionMetadata{
+		FormatVersion: SessionFormatVersion,
 		ID:            id,
 		State:         "starting",
 		StartedAt:     now,
 		Workspace:     workspace,
 		Executable:    filepath.Base(argv[0]),
 		ArgCount:      len(argv) - 1,
+		RecorderPID:   os.Getpid(),
 		Capabilities: []string{
 			"process=observed",
 			"workspace_git=not_observable",
 			"workspace_scan=not_observable",
 			"native_tool_events=not_observable",
-			"local_policy=not_observable",
+			"local_policy=observed",
 			"os_file_monitor=not_observable",
 			"network_monitor=not_observable",
 		},
@@ -101,7 +106,7 @@ func NewSession(sessionsRoot, workspace string, argv []string) (*Session, error)
 	s.Meta.FlushPolicy.Bytes = flushBytes
 	s.Meta.FlushPolicy.IntervalMS = int(flushInterval / time.Millisecond)
 	s.Meta.FlushPolicy.CriticalSync = true
-	if err := atomicWriteJSON(root, "session.json", s.Meta); err != nil {
+	if err := atomicWriteJSON(root, "session.json", s.Meta, redactor); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -111,9 +116,10 @@ func (s *Session) Finish(state string, exitCode *int, seq uint64, finalHash stri
 	s.Meta.State = state
 	s.Meta.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	s.Meta.ChildExitCode = exitCode
+	s.Meta.RecorderPID = 0
 	s.Meta.FinalEventSeq = seq
 	s.Meta.FinalHash = finalHash
-	return atomicWriteJSON(s.Root, "session.json", s.Meta)
+	return atomicWriteJSON(s.Root, "session.json", s.Meta, s.redactor)
 }
 
 func newSessionID(now time.Time) (string, error) {
@@ -145,16 +151,30 @@ func safeJoin(root, relative string) (string, error) {
 	return target, nil
 }
 
-func atomicWriteJSON(root, relative string, value any) error {
-	target, err := safeJoin(root, relative)
-	if err != nil {
-		return err
+func atomicWriteJSON(root, relative string, value any, redactor *Redactor) error {
+	if redactor == nil {
+		return errors.New("persistent JSON requires a redactor")
 	}
-	data, err := json.MarshalIndent(value, "", "  ")
+	data, err := redactor.MarshalIndent(value)
 	if err != nil {
 		return fmt.Errorf("encode %s: %w", relative, err)
 	}
 	data = append(data, '\n')
+	return atomicWriteBytes(root, relative, data)
+}
+
+func atomicWriteRedactedText(root, relative, text string, redactor *Redactor) error {
+	if redactor == nil {
+		return errors.New("persistent text requires a redactor")
+	}
+	return atomicWriteBytes(root, relative, []byte(redactor.Text(text)))
+}
+
+func atomicWriteBytes(root, relative string, data []byte) error {
+	target, err := safeJoin(root, relative)
+	if err != nil {
+		return err
+	}
 	tmp, err := os.CreateTemp(filepath.Dir(target), ".afr-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create temporary %s: %w", relative, err)

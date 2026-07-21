@@ -3,10 +3,12 @@ package afr
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -33,6 +35,18 @@ func TestRunCapturesNonGitDelta(t *testing.T) {
 	delta := readDelta(t, result.SessionDir)
 	if !reflect.DeepEqual(delta.Added, []string{"added.txt"}) || !reflect.DeepEqual(delta.Modified, []string{"modify.txt"}) || !reflect.DeepEqual(delta.Renamed, []RenameEvidence{{From: "rename.txt", To: "renamed.txt"}}) || delta.Partial {
 		t.Fatalf("delta=%+v", delta)
+	}
+	if verification := VerifySession(result.SessionDir); !verification.Valid || verification.DerivedChecked != len(derivedReportPaths) {
+		t.Fatalf("verification=%+v", verification)
+	}
+	for _, relative := range derivedReportPaths {
+		if _, err := os.Stat(filepath.Join(result.SessionDir, relative)); err != nil {
+			t.Fatalf("derived report %s: %v", relative, err)
+		}
+	}
+	shown, err := ShowSession(result.SessionDir)
+	if err != nil || shown.Session.Incomplete || shown.MarkdownPath == "" || shown.RiskJSONPath == "" || shown.HTMLPath == "" {
+		t.Fatalf("show=%+v error=%v", shown, err)
 	}
 }
 
@@ -132,6 +146,98 @@ func TestWorkspaceSymlinkOutsideIsNotFollowed(t *testing.T) {
 	snapshot := CollectWorkspace(root, "", fingerprinter, ScanLimits{})
 	if len(snapshot.Files) != 1 || snapshot.Files[0].Type != "symlink" || !snapshot.Files[0].TargetOutside {
 		t.Fatalf("snapshot=%+v", snapshot)
+	}
+}
+
+func TestRunLeavesNoPlaintextSecretInSession(t *testing.T) {
+	const secret = "supersecretvalue"
+	if os.Getenv("AFR_TEST_SECRET_CHILD") == "1" {
+		foundArg := false
+		for _, argument := range os.Args {
+			if argument == secret {
+				foundArg = true
+			}
+		}
+		if !foundArg {
+			os.Exit(9)
+		}
+		fmt.Fprintln(os.Stdout, "password="+secret)
+		fmt.Fprintln(os.Stderr, "Bearer "+secret+"abcdefghijkl")
+		fmt.Fprintln(os.Stderr, "error: failed at password="+secret)
+		root := os.Getenv("AFR_TEST_SECRET_ROOT")
+		_ = os.WriteFile(filepath.Join(root, "tracked.txt"), []byte("password="+secret+"\n"), 0o600)
+		_ = os.WriteFile(filepath.Join(root, "token="+secret+".txt"), []byte("password="+secret+"\n"), 0o600)
+		os.Exit(0)
+	}
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git unavailable")
+	}
+	base := t.TempDir()
+	workspace := filepath.Join(base, "password="+secret)
+	if err := os.Mkdir(workspace, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace, "tracked.txt"), []byte("safe\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGitFixture(t, git, workspace, "init", "-q")
+	runGitFixture(t, git, workspace, "add", ".")
+	runGitFixture(t, git, workspace, "commit", "-qm", "base")
+	t.Setenv("AFR_TEST_SECRET_CHILD", "1")
+	t.Setenv("AFR_TEST_SECRET_ROOT", workspace)
+	t.Setenv("AFR_SECRET_ENV", secret)
+	result, err := Run(RunOptions{
+		SessionsRoot: filepath.Join(t.TempDir(), "sessions"),
+		Workspace:    workspace,
+	}, []string{os.Args[0], "-test.run=TestRunLeavesNoPlaintextSecretInSession", "--", "--token", secret})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundPlaceholder := false
+	foundSensitiveRisk := false
+	err = filepath.Walk(result.SessionDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil || info.IsDir() {
+			return walkErr
+		}
+		if strings.Contains(path, secret) {
+			t.Errorf("plaintext secret in artifact path %s", path)
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if bytes.Contains(data, []byte(secret)) {
+			t.Errorf("plaintext secret in %s", path)
+		}
+		if bytes.Contains(data, []byte("[REDACTED:")) {
+			foundPlaceholder = true
+		}
+		if bytes.Contains(data, []byte(`"type":"risk_found"`)) && bytes.Contains(data, []byte(`"rule_id":"content.sensitive"`)) {
+			foundSensitiveRisk = true
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !foundPlaceholder {
+		t.Fatal("redaction placeholder missing from session")
+	}
+	if !foundSensitiveRisk {
+		t.Fatal("sensitive evidence did not produce a redacted risk finding")
+	}
+	patch, err := os.ReadFile(filepath.Join(result.SessionDir, "diffs", "workspace.patch"))
+	if err != nil || bytes.Contains(patch, []byte(secret)) || !bytes.Contains(patch, []byte("[REDACTED:")) {
+		t.Fatalf("patch was not safely redacted: %s error=%v", patch, err)
+	}
+	for _, relative := range derivedReportPaths {
+		if _, err := os.Stat(filepath.Join(result.SessionDir, relative)); err != nil {
+			t.Fatalf("report %s missing: %v", relative, err)
+		}
+	}
+	if verification := VerifySession(result.SessionDir); !verification.Valid {
+		t.Fatalf("verification=%+v", verification)
 	}
 }
 

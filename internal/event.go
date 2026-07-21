@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -42,9 +43,14 @@ type EventWriter struct {
 	pending   int
 	lastFlush time.Time
 	closed    bool
+	redactor  *Redactor
+	counts    map[string]uint64
 }
 
-func NewEventWriter(sessionRoot string) (*EventWriter, error) {
+func NewEventWriter(sessionRoot string, redactor *Redactor) (*EventWriter, error) {
+	if redactor == nil {
+		return nil, errors.New("event writer requires a redactor")
+	}
 	path, err := safeJoin(sessionRoot, "events.jsonl")
 	if err != nil {
 		return nil, err
@@ -54,7 +60,7 @@ func NewEventWriter(sessionRoot string) (*EventWriter, error) {
 		return nil, fmt.Errorf("create events: %w", err)
 	}
 	now := time.Now()
-	return &EventWriter{file: file, buffer: bufio.NewWriterSize(file, flushBytes), started: now, lastFlush: now}, nil
+	return &EventWriter{file: file, buffer: bufio.NewWriterSize(file, flushBytes), started: now, lastFlush: now, redactor: redactor, counts: map[string]uint64{}}, nil
 }
 
 func (w *EventWriter) Append(eventType, source string, payload any, critical bool) (uint64, error) {
@@ -63,7 +69,7 @@ func (w *EventWriter) Append(eventType, source string, payload any, critical boo
 	if w.closed {
 		return 0, os.ErrClosed
 	}
-	payloadBytes, err := json.Marshal(payload)
+	payloadBytes, err := w.redactor.Marshal(payload)
 	if err != nil {
 		return 0, fmt.Errorf("encode event payload: %w", err)
 	}
@@ -71,8 +77,8 @@ func (w *EventWriter) Append(eventType, source string, payload any, critical boo
 		Seq:       w.seq + 1,
 		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
 		ElapsedNS: time.Since(w.started).Nanoseconds(),
-		Type:      eventType,
-		Source:    source,
+		Type:      w.redactor.Text(eventType),
+		Source:    w.redactor.Text(source),
 		Payload:   payloadBytes,
 	}
 	line, hash, err := encodeEvent(w.prevHash, body)
@@ -84,6 +90,7 @@ func (w *EventWriter) Append(eventType, source string, payload any, critical boo
 	}
 	w.seq = body.Seq
 	w.prevHash = hash
+	w.counts[body.Type]++
 	w.pending += len(line) + 1
 	if critical || w.pending >= flushBytes || time.Since(w.lastFlush) >= flushInterval {
 		if err := w.flush(critical); err != nil {
@@ -106,7 +113,7 @@ func encodeEvent(prevHash [sha256.Size]byte, body EventBody) ([]byte, [sha256.Si
 	var hash [sha256.Size]byte
 	copy(hash[:], h.Sum(nil))
 	envelope := eventEnvelope{
-		FormatVersion: 1,
+		FormatVersion: EventFormatVersion,
 		PrevHash:      hex.EncodeToString(prevHash[:]),
 		Body:          bodyBytes,
 		Hash:          hex.EncodeToString(hash[:]),
@@ -136,6 +143,16 @@ func (w *EventWriter) Snapshot() (uint64, string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.seq, hex.EncodeToString(w.prevHash[:])
+}
+
+func (w *EventWriter) Counts() map[string]uint64 {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	counts := make(map[string]uint64, len(w.counts))
+	for eventType, count := range w.counts {
+		counts[eventType] = count
+	}
+	return counts
 }
 
 func (w *EventWriter) Close() error {

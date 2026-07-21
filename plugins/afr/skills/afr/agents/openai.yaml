@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Flight Recorder"
+  short_description: "Record and verify coding-agent runs"
+  default_prompt: "Use $afr to record a new agent task or inspect an AFR session."

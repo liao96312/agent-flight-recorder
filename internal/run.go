@@ -9,8 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 const defaultOutputLimit = int64(200 * 1024 * 1024)
@@ -24,6 +26,7 @@ type RunOptions struct {
 	GracePeriod  time.Duration
 	OutputLimit  int64
 	ScanLimits   ScanLimits
+	RecordLimit  int
 }
 
 type RunResult struct {
@@ -38,6 +41,8 @@ type outputCapture struct {
 	totalBytes  int64
 	recorded    int64
 	fingerprint hash.Hash
+	records     *RecordAccumulator
+	preview     strings.Builder
 }
 
 func Run(options RunOptions, argv []string) (RunResult, error) {
@@ -70,29 +75,47 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 	if err != nil {
 		return RunResult{}, err
 	}
+	redactor, err := NewRedactor(fingerprinter)
+	if err != nil {
+		return RunResult{}, err
+	}
 
-	session, err := NewSession(options.SessionsRoot, workspace, argv)
+	session, err := NewSession(options.SessionsRoot, workspace, argv, redactor)
 	if err != nil {
 		return RunResult{}, err
 	}
 	result := RunResult{SessionID: session.Meta.ID, SessionDir: session.Root}
-	writer, err := NewEventWriter(session.Root)
+	writer, err := NewEventWriter(session.Root, redactor)
 	if err != nil {
 		return result, err
 	}
+	riskSet := NewRiskSet()
 	before := CollectWorkspace(workspace, options.SessionsRoot, fingerprinter, options.ScanLimits)
 	session.Meta.Capabilities = WorkspaceCapabilities(before)
-	if _, err := writer.Append("session_started", "afr", map[string]any{
-		"session_id":   session.Meta.ID,
-		"workspace":    workspace,
-		"command":      filepath.Base(argv[0]),
-		"arg_count":    len(argv) - 1,
-		"capabilities": session.Meta.Capabilities,
-	}, true); err != nil {
+	redactedArgv, argvRedactions := redactor.ArgvWithKinds(argv)
+	sessionStartedSeq, err := writer.Append("session_started", "afr", map[string]any{
+		"session_id":        session.Meta.ID,
+		"workspace":         workspace,
+		"command":           filepath.Base(argv[0]),
+		"arg_count":         len(argv) - 1,
+		"argv_redacted":     redactedArgv,
+		"environment_names": redactor.EnvironmentNames(os.Environ()),
+		"capabilities":      session.Meta.Capabilities,
+	}, true)
+	if err != nil {
 		_ = writer.Close()
 		return result, err
 	}
-	if err := WriteWorkspaceArtifact(session.Root, "workspace-before.json", before); err != nil {
+	if finding, found := CommandRisk(argv, sessionStartedSeq); found {
+		riskSet.Add(finding)
+	}
+	if finding, found := SensitiveRisk("argv", argvRedactions, sessionStartedSeq); found {
+		riskSet.Add(finding)
+	}
+	for _, finding := range ObservableBoundaryRisks(workspace, argv, sessionStartedSeq) {
+		riskSet.Add(finding)
+	}
+	if err := WriteWorkspaceArtifact(session.Root, "workspace-before.json", before, redactor); err != nil {
 		return finishSetupFailure(session, writer, result, "workspace_baseline", err)
 	}
 	if _, err := writer.Append("workspace_baseline", "workspace", map[string]any{
@@ -113,18 +136,29 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		return finishSetupFailure(session, writer, result, "start_child", err)
 	}
 	defer tree.close()
-	stdout, err := cmd.StdoutPipe()
+	stdout, stdoutWriter, err := os.Pipe()
 	if err != nil {
 		return finishSetupFailure(session, writer, result, "start_child", err)
 	}
-	stderr, err := cmd.StderrPipe()
+	defer stdout.Close()
+	stderr, stderrWriter, err := os.Pipe()
 	if err != nil {
+		_ = stdoutWriter.Close()
 		return finishSetupFailure(session, writer, result, "start_child", err)
 	}
+	defer stderr.Close()
+	cmd.Stdout = stdoutWriter
+	cmd.Stderr = stderrWriter
 	started := time.Now()
 	if err := cmd.Start(); err != nil {
+		_ = stdoutWriter.Close()
+		_ = stderrWriter.Close()
 		return finishSetupFailure(session, writer, result, "start_child", err)
 	}
+	// The child owns duplicated write handles after Start. Closing the parent's
+	// copies lets readers observe EOF without exec.Cmd.Wait racing to close them.
+	_ = stdoutWriter.Close()
+	_ = stderrWriter.Close()
 	if err := tree.afterStart(cmd); err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
@@ -141,18 +175,44 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		return result, err
 	}
 
-	stdoutCapture := outputCapture{stream: "stdout", fingerprint: fingerprinter.NewHash()}
-	stderrCapture := outputCapture{stream: "stderr", fingerprint: fingerprinter.NewHash()}
+	stdoutCapture := outputCapture{stream: "stdout", fingerprint: fingerprinter.NewHash(), records: NewRecordAccumulator(redactor, options.RecordLimit)}
+	stderrCapture := outputCapture{stream: "stderr", fingerprint: fingerprinter.NewHash(), records: NewRecordAccumulator(redactor, options.RecordLimit)}
 	var pumps sync.WaitGroup
 	var captureMu sync.Mutex
 	var captureErr error
 	pump := func(state *outputCapture, reader io.Reader, terminal io.Writer) {
 		defer pumps.Done()
 		buffer := make([]byte, 32*1024)
+		persistRecord := func(record RedactedRecord) error {
+			if state.recorded+int64(record.Bytes) > options.OutputLimit {
+				return nil
+			}
+			state.recorded += int64(record.Bytes)
+			state.chunks++
+			appendReportPreview(&state.preview, record.Text)
+			payload := map[string]any{
+				"stream":     state.stream,
+				"record_seq": state.chunks,
+				"bytes":      record.Bytes,
+			}
+			if record.OmittedReason == "" {
+				payload["text"] = record.Text
+			} else {
+				payload["content_omitted"] = true
+				payload["omitted_reason"] = record.OmittedReason
+				payload["fingerprint"] = record.Fingerprint
+			}
+			seq, err := writer.Append("process_output", "process", payload, false)
+			if err == nil {
+				if finding, found := SensitiveRisk(state.stream, record.Redactions, seq); found {
+					riskSet.Add(finding)
+				}
+			}
+			return err
+		}
 		for {
 			n, readErr := reader.Read(buffer)
 			if n > 0 {
-				state.chunks++
 				state.totalBytes += int64(n)
 				_, _ = state.fingerprint.Write(buffer[:n])
 				written, terminalErr := terminal.Write(buffer[:n])
@@ -160,20 +220,10 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 					terminalErr = io.ErrShortWrite
 				}
 				var eventErr error
-				remaining := options.OutputLimit - state.recorded
-				if remaining > 0 {
-					recorded := int64(n)
-					if recorded > remaining {
-						recorded = remaining
+				for _, record := range state.records.Feed(buffer[:n]) {
+					if err := persistRecord(record); err != nil && eventErr == nil {
+						eventErr = err
 					}
-					state.recorded += recorded
-					_, eventErr = writer.Append("process_output", "process", map[string]any{
-						"stream":          state.stream,
-						"chunk_seq":       state.chunks,
-						"bytes":           recorded,
-						"content_omitted": true,
-						"omitted_reason":  "redaction_pipeline_pending",
-					}, false)
 				}
 				if terminalErr != nil || eventErr != nil {
 					captureMu.Lock()
@@ -184,6 +234,15 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 				}
 			}
 			if readErr != nil {
+				for _, record := range state.records.Close() {
+					if err := persistRecord(record); err != nil {
+						captureMu.Lock()
+						if captureErr == nil {
+							captureErr = err
+						}
+						captureMu.Unlock()
+					}
+				}
 				if !errors.Is(readErr, io.EOF) {
 					captureMu.Lock()
 					if captureErr == nil {
@@ -240,27 +299,44 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 	}
 	after := CollectWorkspace(workspace, options.SessionsRoot, fingerprinter, options.ScanLimits)
 	delta := CompareWorkspace(before, after)
+	patch, patchErr := GenerateWorkspacePatch(workspace, session.Root, before, after, delta, fingerprinter, redactor, defaultDiffLimit)
+	if patchErr != nil {
+		_ = writer.Close()
+		return result, patchErr
+	}
+	delta.Patch = patch
+	if patch.Error != "" {
+		after.Git.Error = patch.Error
+	}
 	session.Meta.Capabilities = WorkspaceCapabilities(after)
-	if err := WriteWorkspaceArtifact(session.Root, "workspace-after.json", after); err != nil {
+	if err := WriteWorkspaceArtifact(session.Root, "workspace-after.json", after, redactor); err != nil {
 		_ = writer.Close()
 		return result, err
 	}
-	if err := WriteWorkspaceArtifact(session.Root, "workspace-delta.json", delta); err != nil {
+	if err := WriteWorkspaceArtifact(session.Root, "workspace-delta.json", delta, redactor); err != nil {
 		_ = writer.Close()
 		return result, err
 	}
-	if _, err := writer.Append("workspace_final", "workspace", map[string]any{
+	workspaceFinalSeq, err := writer.Append("workspace_final", "workspace", map[string]any{
 		"mode":      after.Mode,
 		"partial":   delta.Partial,
 		"added":     len(delta.Added),
 		"modified":  len(delta.Modified),
 		"deleted":   len(delta.Deleted),
 		"renamed":   len(delta.Renamed),
-		"artifacts": []string{"snapshots/workspace-after.json", "snapshots/workspace-delta.json"},
-	}, true); err != nil {
+		"artifacts": []string{"snapshots/workspace-after.json", "snapshots/workspace-delta.json", "diffs/workspace.patch"},
+	}, true)
+	if err != nil {
 		_ = writer.Close()
 		return result, err
 	}
+	if finding, found := BulkChangeRisk(delta, workspaceFinalSeq); found {
+		riskSet.Add(finding)
+	}
+	if finding, found := SensitiveRisk("workspace patch", patch.Redactions, workspaceFinalSeq); found {
+		riskSet.Add(finding)
+	}
+	findings := riskSet.Findings()
 	if _, err := writer.Append("process_exited", "process", map[string]any{
 		"exit_code":   exitCode,
 		"termination": termination,
@@ -269,18 +345,46 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		_ = writer.Close()
 		return result, err
 	}
+	for _, finding := range findings {
+		if _, err := writer.Append("risk_found", "policy", finding, true); err != nil {
+			_ = writer.Close()
+			return result, err
+		}
+	}
 	if _, err := writer.Append("session_finished", "afr", map[string]any{
 		"state":         "completed",
 		"child_success": exitCode == 0,
+		"risk_count":    len(findings),
+		"highest_risk":  highestSeverity(findings),
 	}, true); err != nil {
 		_ = writer.Close()
 		return result, err
 	}
+	eventCounts := writer.Counts()
 	seq, hash := writer.Snapshot()
 	if err := writer.Close(); err != nil {
 		return result, err
 	}
 	if err := session.Finish("completed", &exitCode, seq, hash); err != nil {
+		return result, err
+	}
+	streams := []ReportStream{}
+	for _, capture := range []*outputCapture{&stdoutCapture, &stderrCapture} {
+		streams = append(streams, ReportStream{
+			Stream:        capture.stream,
+			TotalBytes:    capture.totalBytes,
+			RecordedBytes: capture.recorded,
+			Records:       capture.chunks,
+			Truncated:     capture.totalBytes > options.OutputLimit,
+			Fingerprint:   hex.EncodeToString(capture.fingerprint.Sum(nil)),
+			Preview:       capture.preview.String(),
+		})
+	}
+	view := NewReportView(session.Meta, delta, findings, eventCounts, streams)
+	if err := WriteReportArtifacts(session.Root, view, redactor); err != nil {
+		return result, err
+	}
+	if err := WriteManifest(session.Root, session.Meta.ID, requiredEvidencePaths, derivedReportPaths, redactor); err != nil {
 		return result, err
 	}
 	captureMu.Lock()
@@ -293,6 +397,24 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		return result, fmt.Errorf("wait for child: %w", waitErr)
 	}
 	return result, nil
+}
+
+func appendReportPreview(preview *strings.Builder, text string) {
+	if text == "" || preview.Len() >= reportPreviewLimit {
+		return
+	}
+	if preview.Len() > 0 {
+		preview.WriteByte('\n')
+	}
+	remaining := reportPreviewLimit - preview.Len()
+	data := []byte(text)
+	if len(data) > remaining {
+		data = data[:remaining]
+		for len(data) > 0 && !utf8.Valid(data) {
+			data = data[:len(data)-1]
+		}
+	}
+	_, _ = preview.Write(data)
 }
 
 func waitForChild(command *exec.Cmd, tree *processTree, waitDone <-chan error, interrupts <-chan os.Signal, gracePeriod time.Duration) (waitErr error, interrupted, forced bool, signalName string, forwardOK bool) {

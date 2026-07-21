@@ -85,17 +85,18 @@ type RenameEvidence struct {
 }
 
 type WorkspaceDelta struct {
-	FormatVersion   int              `json:"format_version"`
-	Added           []string         `json:"added"`
-	Modified        []string         `json:"modified"`
-	Deleted         []string         `json:"deleted"`
-	Renamed         []RenameEvidence `json:"renamed"`
-	PreExisting     []string         `json:"pre_existing"`
-	Partial         bool             `json:"partial"`
-	OmissionReasons []string         `json:"omission_reasons,omitempty"`
+	FormatVersion   int                   `json:"format_version"`
+	Added           []string              `json:"added"`
+	Modified        []string              `json:"modified"`
+	Deleted         []string              `json:"deleted"`
+	Renamed         []RenameEvidence      `json:"renamed"`
+	PreExisting     []string              `json:"pre_existing"`
+	Partial         bool                  `json:"partial"`
+	OmissionReasons []string              `json:"omission_reasons,omitempty"`
+	Patch           WorkspacePatchSummary `json:"patch"`
 }
 
-func WriteWorkspaceArtifact(sessionRoot, name string, value any) error {
+func WriteWorkspaceArtifact(sessionRoot, name string, value any, redactor *Redactor) error {
 	directory, err := safeJoin(sessionRoot, "snapshots")
 	if err != nil {
 		return err
@@ -103,7 +104,7 @@ func WriteWorkspaceArtifact(sessionRoot, name string, value any) error {
 	if err := os.Mkdir(directory, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("create snapshot directory: %w", err)
 	}
-	return atomicWriteJSON(sessionRoot, filepath.Join("snapshots", name), value)
+	return atomicWriteJSON(sessionRoot, filepath.Join("snapshots", name), value, redactor)
 }
 
 func WorkspaceCapabilities(snapshot WorkspaceSnapshot) []string {
@@ -116,7 +117,7 @@ func WorkspaceCapabilities(snapshot WorkspaceSnapshot) []string {
 		gitCapability,
 		"workspace_scan=observed",
 		"native_tool_events=not_observable",
-		"local_policy=not_observable",
+		"local_policy=observed",
 		"os_file_monitor=not_observable",
 		"network_monitor=not_observable",
 	}
@@ -212,7 +213,7 @@ func CollectWorkspace(root, excludedRoot string, fingerprinter *Fingerprinter, l
 		}
 		snapshot.ScannedFiles++
 		record.ModifiedAt = info.ModTime().UTC().Format(time.RFC3339Nano)
-		if info.Mode()&os.ModeSymlink != 0 {
+		if isLinkLike(info) {
 			record.Type = "symlink"
 			target, linkErr := os.Readlink(path)
 			if linkErr != nil {
@@ -228,6 +229,7 @@ func CollectWorkspace(root, excludedRoot string, fingerprinter *Fingerprinter, l
 					record.ResolvedTarget = resolvedTarget
 				} else {
 					record.OmittedReason = "link_target_unresolved"
+					snapshot.Partial = true
 				}
 				record.TargetOutside = !pathWithin(root, target)
 			}

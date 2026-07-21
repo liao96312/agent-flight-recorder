@@ -51,11 +51,11 @@
   - 依赖：F0-04、F0-07。
   - 验收：事实、推断、严重度、证据 seq、规则版本、能力缺口和截断声明均有字段。
 
-- [ ] **F0-09 [P0] 冻结 CLI 命令和 argv 边界**
+- [x] **F0-09 [P0] 冻结 CLI 命令和 argv 边界**
   - 依赖：F0-05。
   - 验收：run/list/show/verify/clean/version 的语法、默认值和错误类别有黄金示例；不经 shell 字符串拼接。
 
-- [ ] **F0-10 [P0] 冻结流和退出码契约**
+- [x] **F0-10 [P0] 冻结流和退出码契约**
   - 依赖：F0-09。
   - 验收：child stdout/stderr、AFR 摘要流、child exit code、AFR setup/finalize error 的优先级可由脚本区分。
 
@@ -63,7 +63,7 @@
   - 依赖：F0-09。
   - 验收：CLI flags > workspace `.afr.json` > defaults；未实现的用户/组织层不出现在规范中。
 
-- [ ] **F0-12 [P0] 建立黄金向量**
+- [x] **F0-12 [P0] 建立黄金向量**
   - 依赖：F0-06、F0-07、F0-08。
   - 验收：固定事件 body、hash、manifest、risk、redaction 输出可在任何构建中逐字节复现。
 
@@ -71,7 +71,7 @@
   - 依赖：F0-07。
   - 验收：session/events/manifest、before/after、patch、Markdown、risk JSON、HTML 各自是必需、条件性或派生。
 
-- [ ] **F0-14 [P0] 定义性能 fixture**
+- [x] **F0-14 [P0] 定义性能 fixture**
   - 依赖：无。
   - 验收：记录 Windows 版本、CPU/内存/磁盘、Git 版本、仓库文件数/体积、事件大小和 flush 模式；指标不再使用含糊的“中型仓库”。
 
@@ -191,7 +191,7 @@
   - 依赖：M1-04、M1-06。
   - 验收：任务前已有脏改动单列；本次新增、修改、删除、重命名、staged、untracked 归类准确。
 
-- [ ] **M1-08 [P0] 生成 workspace patch 与文件摘要**
+- [x] **M1-08 [P0] 生成 workspace patch 与文件摘要**
   - 依赖：M1-07。
   - 验收：文本 patch 与人工 Git 检查一致；binary/LFS/submodule 有明确摘要，不伪装为完整正文。
 
@@ -215,15 +215,15 @@
   - 依赖：M0-09、M1-00。
   - 验收：超限后仍 drain、计数、算会话级 HMAC 指纹；child 不因管道阻塞；不保存裸原文 hash。
 
-- [ ] **M1-14 [P0] 实现 Diff 50 MB 上限**
+- [x] **M1-14 [P0] 实现 Diff 50 MB 上限**
   - 依赖：M1-00、M1-08。
   - 验收：停止保存正文但保留文件摘要、总字节和会话级 HMAC 指纹；报告显式 truncated。
 
-- [ ] **M1-15 [P0] 大仓库基准**
+- [x] **M1-15 [P0] 大仓库基准**
   - 依赖：F0-14、M1-04 至 M1-12。
   - 验收：输出分阶段耗时；在固定 fixture 上达到目标或形成有证据的调整提案。
 
-- [ ] **M1-16 [P0] M1 端到端测试**
+- [x] **M1-16 [P0] M1 端到端测试**
   - 依赖：M1 的 P0 项。
   - 验收：Git 与非 Git 结果均与 fixture 预期逐项一致；权限拒绝和路径消失可见。
 
@@ -231,27 +231,27 @@
 
 阶段出口：任何制品都不能绕过脱敏；未修改会话 verify 通过，典型篡改可定位。
 
-- [ ] **M2-01 [P0] 建立唯一持久化前脱敏 API**
+- [x] **M2-01 [P0] 建立唯一持久化前脱敏 API**
   - 依赖：M0-06、F0-08。
   - 验收：事件、session、manifest、Git/文件制品和派生报告没有其他文本写盘入口。
 
-- [ ] **M2-02 [P0] 实现 argv 脱敏副本**
+- [x] **M2-02 [P0] 实现 argv 脱敏副本**
   - 依赖：M2-01、M0-08。
   - 验收：child 收到原 argv；落盘和错误只见脱敏结构；不打印重组命令造成注入。
 
-- [ ] **M2-03 [P0] 实现 bounded record reader**
+- [x] **M2-03 [P0] 实现 bounded record reader**
   - 依赖：M0-10、M2-01。
   - 验收：正常文本可完整检测；超长单记录 fail-closed，只存大小/hash/omitted 原因。
 
-- [ ] **M2-04 [P0] 实现内置 secret detectors**
+- [x] **M2-04 [P0] 实现内置 secret detectors**
   - 依赖：M2-03。
   - 验收：API key、Bearer、私钥块、连接串、Cookie、常见敏感变量各有正反测试。
 
-- [ ] **M2-05 [P0] 实现跨 read chunk 与跨行测试**
+- [x] **M2-05 [P0] 实现跨 read chunk 与跨行测试**
   - 依赖：M2-04。
   - 验收：secret 被拆在读取边界、多行私钥、CRLF/LF、ANSI 包裹时不泄漏。
 
-- [ ] **M2-06 [P0] 实现环境变量最小采集**
+- [x] **M2-06 [P0] 实现环境变量最小采集**
   - 依赖：M2-01。
   - 验收：默认只记录名称；任何继承值都不进入会话目录。
 
@@ -259,59 +259,59 @@
   - 依赖：F0-11、M2-01。
   - 验收：无效正则在启动前失败；规则有名称、类型和测试；不支持任意代码。
 
-- [ ] **M2-08 [P0] 实现会话内 HMAC 脱敏关联前缀**
+- [x] **M2-08 [P0] 实现会话内 HMAC 脱敏关联前缀**
   - 依赖：M1-00、M2-04。
   - 验收：同一会话同 secret 占位符一致，不同会话不同；HMAC key 永不写盘。
 
-- [ ] **M2-09 [P0] 处理二进制/未知编码**
+- [x] **M2-09 [P0] 处理二进制/未知编码**
   - 依赖：M2-03。
   - 验收：正文不落盘，只记录 bytes、会话级 HMAC 指纹、判定/截断原因。
 
-- [ ] **M2-10 [P0] 脱敏路径、文件名与错误消息**
+- [x] **M2-10 [P0] 脱敏路径、文件名与错误消息**
   - 依赖：M2-01、M1。
   - 验收：假 secret 出现在路径、文件名、Git 错误、报告标题时，全目录无原文。
 
-- [ ] **M2-11 [P0] 实现 RiskFinding 模型**
+- [x] **M2-11 [P0] 实现 RiskFinding 模型**
   - 依赖：F0-08、M0-06。
   - 验收：rule_id/version、observed/inferred、severity、evidence_seq、explanation、action 可稳定排序。
 
-- [ ] **M2-12 [P0] 实现破坏性命令规则**
+- [x] **M2-12 [P0] 实现破坏性命令规则**
   - 依赖：M2-11、M2-02。
   - 验收：只对可见 argv/tool 输入判断；引用文本和安全命令有反例。
 
-- [ ] **M2-13 [P0] 实现敏感信息规则**
+- [x] **M2-13 [P0] 实现敏感信息规则**
   - 依赖：M2-04、M2-11。
   - 验收：finding 只引用脱敏 evidence；风险输出不恢复 secret。
 
-- [ ] **M2-14 [P0] 实现大规模变更规则**
+- [x] **M2-14 [P0] 实现大规模变更规则**
   - 依赖：M1-07、M2-11。
   - 验收：阈值版本化，报告列出范围；pre-existing 不计入本次批量变化。
 
-- [ ] **M2-15 [P0] 实现可观测越界/权限/网络规则**
+- [x] **M2-15 [P0] 实现可观测越界/权限/网络规则**
   - 依赖：F0-04、M2-11。
   - 验收：只有证据给出真实路径/权限/域名才命中；否则 capability 显示 not_observable。
 
-- [ ] **M2-16 [P0] 实现 evidence/derived manifest**
+- [x] **M2-16 [P0] 实现 evidence/derived manifest**
   - 依赖：F0-07、M1、M2-01。
   - 验收：相对路径排序稳定；manifest 不包含自身；证据与派生物边界符合规划。
 
-- [ ] **M2-17 [P0] 实现流式 `afr verify`**
+- [x] **M2-17 [P0] 实现流式 `afr verify`**
   - 依赖：M0-16、M2-16、F0-12。
   - 验收：检查格式版本、seq、prev/hash、final hash、evidence hash、derived hash；大文件不全量载入内存。
 
-- [ ] **M2-18 [P0] 定位首个事件异常**
+- [x] **M2-18 [P0] 定位首个事件异常**
   - 依赖：M2-17。
   - 验收：删除、插入、改写、重排、torn tail 分别返回首个坏 seq 或明确结构错误。
 
-- [ ] **M2-19 [P0] 定位制品异常**
+- [x] **M2-19 [P0] 定位制品异常**
   - 依赖：M2-17。
   - 验收：缺失、替换、截断 patch/snapshot/report 返回具体相对路径和 expected/actual metadata。
 
-- [ ] **M2-20 [P0] 全目录 secret 扫描测试**
+- [x] **M2-20 [P0] 全目录 secret 扫描测试**
   - 依赖：M2-02 至 M2-10。
   - 验收：假 secret 分布在 argv、stdout、stderr、JSON、Diff、路径、错误、报告，全 session 根零明文命中。
 
-- [ ] **M2-21 [P0] M2 篡改矩阵**
+- [x] **M2-21 [P0] M2 篡改矩阵**
   - 依赖：M2-17 至 M2-19。
   - 验收：事件和制品所有规定变体均失败；整目录重算攻击明确显示不在 v0.1 威胁模型内。
 
@@ -319,35 +319,35 @@
 
 阶段出口：开发者能记录、查找、复核、验证和安全清理会话；Windows 干净 VM 和两个薄插件均冒烟通过。
 
-- [ ] **M3-01 [P0] 实现统一 Report View Model**
+- [x] **M3-01 [P0] 实现统一 Report View Model**
   - 依赖：F0-08、M1、M2。
   - 验收：Markdown/JSON/HTML 共用同一状态、能力、事件、变更和风险排序。
 
-- [ ] **M3-02 [P0] 生成 `agent-flight.md`**
+- [x] **M3-02 [P0] 生成 `agent-flight.md`**
   - 依赖：M3-01。
   - 验收：短摘要包含状态、child exit、能力矩阵、变更、最高风险、截断/缺口、verify 说明。
 
-- [ ] **M3-03 [P0] 生成 `agent-risk.json`**
+- [x] **M3-03 [P0] 生成 `agent-risk.json`**
   - 依赖：M3-01。
   - 验收：schema/version 固定；只含已脱敏事实和风险；排序可复现。
 
-- [ ] **M3-04 [P0] 生成单文件 `report.html`**
+- [x] **M3-04 [P0] 生成单文件 `report.html`**
   - 依赖：M3-01。
   - 验收：离线打开；事件/风险/文件筛选可用；不加载外部资源。
 
-- [ ] **M3-05 [P0] 实现 HTML 上下文转义与 CSP**
+- [x] **M3-05 [P0] 实现 HTML 上下文转义与 CSP**
   - 依赖：M3-04。
   - 验收：`</script>`、属性注入、CSS/JSON/Unicode payload 均只显示文本；浏览器网络请求为零。
 
-- [ ] **M3-06 [P0] 限制 HTML 内嵌输出量**
+- [x] **M3-06 [P0] 限制 HTML 内嵌输出量**
   - 依赖：M3-04、M1-13。
   - 验收：200 MB 流不会生成 200 MB DOM；报告展示预览、总量和 hash，浏览器可用。
 
-- [ ] **M3-07 [P0] 实现 `afr list`**
+- [x] **M3-07 [P0] 实现 `afr list`**
   - 依赖：M0-17。
   - 验收：只扫描 sessions 一级目录和小型 session.json；坏目录不阻塞其余结果；支持 limit/json。
 
-- [ ] **M3-08 [P0] 实现 `afr show`**
+- [x] **M3-08 [P0] 实现 `afr show`**
   - 依赖：M3-01、M3-07。
   - 验收：完整 ID、唯一前缀、latest 可用；歧义明确失败；incomplete 生成只读摘要。
 
@@ -359,47 +359,47 @@
   - 依赖：M2-16、M3-01。
   - 验收：先 verify evidence，只更新 derived 文件与 derived hashes；events/evidence 条目字节不变。
 
-- [ ] **M3-11 [P0] 实现 `afr clean` 精确目标预览**
+- [x] **M3-11 [P0] 实现 `afr clean` 精确目标预览**
   - 依赖：M0-03、M3-07。
   - 验收：只接受解析出的合法 session 目录；不使用模糊路径；活跃/伪造/链接目录拒绝。
 
-- [ ] **M3-12 [P0] 实现 clean 确认与 `--yes`**
+- [x] **M3-12 [P0] 实现 clean 确认与 `--yes`**
   - 依赖：M3-11。
   - 验收：交互默认确认；非 TTY 无 `--yes` 不删除；删除后输出精确清单。
 
-- [ ] **M3-13 [P1] 实现保留天数和容量策略**
+- [x] **M3-13 [P1] 实现保留天数和容量策略**
   - 依赖：M3-11。
   - 验收：按 session 整体选取；不会后台自动运行；选择规则确定、可预览。
 
-- [ ] **M3-14 [P0] 生成 Windows x64 单文件**
+- [x] **M3-14 [P0] 生成 Windows x64 单文件**
   - 依赖：M3 P0 功能。
   - 验收：模板 `go:embed`；干净 Windows VM 只放 `afr.exe` 可运行 version/list，并明确提示 Git/Agent 外部前置。
 
-- [ ] **M3-15 [P0] 输出构建与格式版本**
+- [x] **M3-15 [P0] 输出构建与格式版本**
   - 依赖：M3-14。
   - 验收：version 输出 semantic version、commit、build time、event format、manifest format。
 
-- [ ] **M3-16 [P0] 创建共享插件根**
+- [x] **M3-16 [P0] 创建共享插件根**
   - 依赖：F0-02、M3-14。
   - 验收：同一目录包含 `.codex-plugin/plugin.json`、`.claude-plugin/plugin.json`、`skills/afr/SKILL.md`；无 hooks、MCP、daemon。
 
-- [ ] **M3-17 [P0] 编写薄 `afr` skill**
+- [x] **M3-17 [P0] 编写薄 `afr` skill**
   - 依赖：M3-16、F0-09。
   - 验收：检查 CLI、构造非交互 argv、声明“启动新记录任务”、show/verify；不声称追溯当前会话。
 
-- [ ] **M3-18 [P0] 校验 Codex 插件**
+- [x] **M3-18 [P0] 校验 Codex 插件**
   - 依赖：M3-16、M3-17。
   - 验收：官方/本地 validator 通过；本地 marketplace 能发现；skill 能启动一次 `afr run -- codex exec ...`。
 
-- [ ] **M3-19 [P0] 校验 Claude Code 插件**
+- [x] **M3-19 [P0] 校验 Claude Code 插件**
   - 依赖：M3-16、M3-17。
   - 验收：`claude --plugin-dir` 可加载；namespaced skill 可调用同一 CLI；额外 Codex manifest 不造成错误。
 
-- [ ] **M3-20 [P0] 双宿主共根失败时最小分包**
+- [x] **M3-20 [P0] 双宿主共根失败时最小分包**
   - 依赖：M3-18、M3-19。
   - 验收：仅当真实 validator/loader 失败才拆 manifest 包；共享 skill 和 CLI 仍为单一来源。
 
-- [ ] **M3-21 [P0] v0.1 总验收**
+- [x] **M3-21 [P0] v0.1 总验收**
   - 依赖：所有 v0.1 P0。
   - 验收：`PROJECT_PLAN.md` 第 12.3 节所有发布门槛自动或人工可重复通过。
 
@@ -461,15 +461,15 @@
 
 ## 7. 发布、文档与维护
 
-- [ ] **R0-01 [P0] 编写 5 分钟快速开始**
+- [x] **R0-01 [P0] 编写 5 分钟快速开始**
   - 依赖：M3-21。
   - 验收：安装 CLI、记录一次任务、打开报告、verify、clean 全流程可复制。
 
-- [ ] **R0-02 [P0] 编写隐私与威胁模型说明**
+- [x] **R0-02 [P0] 编写隐私与威胁模型说明**
   - 依赖：F0-03、M2。
   - 验收：清楚区分本地一致性、非数字签名、not_observable、会话共享风险和删除方式。
 
-- [ ] **R0-03 [P0] 输出 Windows 校验和**
+- [x] **R0-03 [P0] 输出 Windows 校验和**
   - 依赖：M3-14。
   - 验收：发布包含 `afr.exe`、SHA-256、版本说明；校验在干净 VM 通过。
 
@@ -481,15 +481,15 @@
   - 依赖：M0-15、M3-21。
   - 验收：go test/build 与最小 run/verify 通过；非 Windows 明确标 beta。
 
-- [ ] **R0-06 [P0] Schema 向后读取测试**
+- [x] **R0-06 [P0] Schema 向后读取测试**
   - 依赖：M2-17、M3-15。
   - 验收：新版可只读 verify v1；未知未来版本拒绝写入，不修改源会话。
 
-- [ ] **R0-07 [P0] 插件升级/禁用/卸载测试**
+- [x] **R0-07 [P0] 插件升级/禁用/卸载测试**
   - 依赖：M3-18、M3-19。
   - 验收：操作不删除 `~/.afr/sessions`；CLI 缺失和版本不兼容有清晰提示。
 
-- [ ] **R0-08 [P0] 建立发布检查表**
+- [x] **R0-08 [P0] 建立发布检查表**
   - 依赖：全部 v0.1 P0。
   - 验收：测试、基准、secret scan、HTML 网络检查、干净 VM、双宿主插件、文档和校验和均有记录。
 

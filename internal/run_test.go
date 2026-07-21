@@ -52,8 +52,8 @@ func TestRunRecordsOutputAndNonZeroExit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Contains(events, []byte("hello stdout")) || bytes.Contains(events, []byte("hello stderr")) {
-		t.Fatal("raw child output was persisted before redaction exists")
+	if !bytes.Contains(events, []byte("hello stdout")) || !bytes.Contains(events, []byte("hello stderr")) {
+		t.Fatal("safe child output was not persisted")
 	}
 	var previous [sha256.Size]byte
 	var eventTypes []string

@@ -295,15 +295,28 @@ hash = SHA256("AFR-EVENT-v1\n" || prev_hash_bytes || "\n" || exact_body_bytes)
 ### 7.1 命令面
 
 ```text
-afr run [--workspace PATH] [--label TEXT] -- COMMAND [ARG...]
+afr run [--workspace PATH] -- COMMAND [ARG...]
 afr list [--limit N] [--json]
-afr show [SESSION|latest] [--json] [--open]
-afr verify [SESSION|latest] [--json]
+afr show [--json] [--open] [SESSION|latest]
+afr verify [--json] [SESSION|latest]
 afr clean (--older-than DURATION | --max-bytes SIZE) [--yes]
 afr version
 ```
 
 `report` 和 `replay` 不进入首个必需命令面。自动报告已经覆盖日常路径；有证据证明需要重建时再加入 `report`。
+
+冻结的 v0.1 解析契约如下；`[]` 表示可选，命令名和 flag 区分大小写：
+
+| 命令 | 默认值与边界 | 稳定用法错误示例 |
+| --- | --- | --- |
+| `run [--workspace PATH] -- COMMAND [ARG...]` | workspace 为当前目录；第一个独立 `--` 是 AFR 与 child argv 的唯一边界，之后的空格、引号、Unicode 和前导短横线逐项原样传递 | 缺少 `--`、空 command、未知 AFR flag |
+| `list [--limit N] [--json]` | limit=20，按 session ID 倒序；N 必须大于 0 | 多余位置参数、非法 N |
+| `show [--json] [--open] [SESSION\|latest]` | selector 默认为 `latest`；完整 ID 或唯一前缀；`--open` 只打开派生 HTML | selector 歧义、额外参数 |
+| `verify [--json] [SESSION\|latest]` | selector 默认为 `latest`；只读，不修复证据；`--json` 也兼容放在 selector 后 | 多个 selector、未知 flag |
+| `clean (--older-than DURATION \| --max-bytes SIZE) [--yes]` | 恰好一个选择条件；默认只预览；非 TTY 删除必须显式 `--yes` | 无条件、双条件、非法 duration/size |
+| `version` | 无参数，写 stdout | 任意额外参数 |
+
+黄金 argv 示例：`afr run --workspace "C:\work space" -- agent.exe "space arg" "\"quoted\"" 中文 --leading` 必须产生五项 child argv：`agent.exe`、`space arg`、`"quoted"`、`中文`、`--leading`（可执行文件加四个参数），不得重组为 shell 字符串。所有用法错误以 `AFR_USAGE:` 开头、返回 64，且不得创建 session。
 
 ### 7.2 流与退出码
 
@@ -314,6 +327,19 @@ afr version
 - 记录器在启动 child 前失败时返回保留的 AFR 错误码，并且打印稳定错误类别。
 - 记录器在 child 已运行后自身收尾失败时返回 AFR 错误码，同时保留 child exit code 到 `session.json`。
 - `verify`：0 表示通过，2 表示证据不一致，其他值表示读取/用法失败。
+
+冻结数值与脚本判别规则：
+
+| 场景 | 退出码 | stdout | stderr 前缀/内容 |
+| --- | ---: | --- | --- |
+| `run` 完整收尾 | child 原退出码（0–255） | child stdout 原样 | child stderr 原样，末尾另写 `AFR session ...` 摘要 |
+| child 启动前或 AFR 收尾失败 | 70 | 已产生的 child stdout（若有） | `AFR_RUNTIME:`；已分配 session 时追加其目录 |
+| CLI 用法错误 | 64 | 空 | `AFR_USAGE:` |
+| `verify` 通过 | 0 | 文本或 `--json` 结果 | 空 |
+| `verify` 发现不一致 | 2 | `--json` 时为结构化结果，否则空 | 非 JSON 模式以 `AFR_VERIFY:` 开头 |
+| `list/show/verify` 读取失败 | 70 | 空 | `AFR_RUNTIME:` |
+
+child 自身返回 2、64 或 70 时仍属于“完整收尾”，脚本通过 stderr 中是否出现 `AFR_RUNTIME:` / `AFR_USAGE:` 区分 AFR 故障；child 退出码同时持久化到 `session.json.child_exit_code`。AFR 不吞掉 child stderr，也不向 child stdout 注入摘要。
 
 最终数值在 Phase 0 用 Windows 与 CI 行为测试冻结，不能只写文档不测试。
 
@@ -385,6 +411,10 @@ L1 的 before/after 只能证明工作区内变化。只有命令参数或原生
 | 大规模变化 | workspace delta | 工作区外变化 |
 
 风险结果必须包含 `rule_version`、`evidence_seq[]`、事实、解释、严重级别和建议；事实与判断分开。
+
+v0.1 的 `workspace.bulk_change` 规则版本为 1，本次 session delta 达到 100 个文件时触发；pre-existing 文件不计入阈值。
+
+越界路径、提权请求和网络目标规则只读取 AFR 直接收到的 argv；即使命中规则，`os_file_monitor` 与 `network_monitor` 仍标记为 `not_observable`，不把请求语法等同于实际系统行为。
 
 ## 10. 离线报告
 
@@ -473,6 +503,10 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 4. **安全测试**：全目录 secret 扫描、HTML 注入、clean 越界、manifest 篡改。
 5. **插件冒烟**：Codex 与 Claude Code 各自加载、调用 skill、找到 CLI、打开报告。
 6. **基准测试**：10 万事件、大仓库基线、大输出截断；先固定硬件和 fixture 再谈指标。
+
+固定性能 fixture：Windows x64；10,000 个 1 KiB 文本文件（100 目录 × 100 文件，共 10,240,000 bytes），Git clean baseline 后修改 100 个文件；工作区 before/after 各自必须在 10 秒扫描预算内完整完成，再分别记录 delta 与 patch 耗时。事件 fixture 为 100,000 个 1 KiB payload，flush 策略固定为 64 KiB 或 1 秒、关键事件立即 sync。运行 `scripts/benchmark.ps1` 会同时记录 Windows 版本、CPU/逻辑核、物理内存、当前磁盘与余量、Git 版本和分阶段耗时；日常 `go test ./...` 不运行重 fixture。
+
+2026-07-21 基线：Windows 10 IoT Enterprise LTSC 10.0.19044、i5-12400（12 logical CPUs）、31.77 GiB RAM、D: 余量 396.33 GiB、Git 2.54.0；before 1.054 s、after 1.043 s、delta 3.003 ms、patch 1.656 s，完整 fixture 通过且未触发 partial/truncated。
 
 ### 12.3 发布门槛
 

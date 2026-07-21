@@ -1,0 +1,21 @@
+{
+  "name": "afr",
+  "version": "0.1.0",
+  "description": "Record, inspect, and verify local coding-agent runs with the Agent Flight Recorder CLI.",
+  "author": {
+    "name": "liao96312",
+    "url": "https://github.com/liao96312"
+  },
+  "homepage": "https://github.com/liao96312/agent-flight-recorder",
+  "repository": "https://github.com/liao96312/agent-flight-recorder",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Agent Flight Recorder",
+    "shortDescription": "Record and verify coding-agent runs.",
+    "longDescription": "Launch a new Codex or Claude Code task through the local AFR CLI, then inspect and verify its evidence report.",
+    "developerName": "liao96312",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": "Use $afr to record a new coding-agent task or inspect an existing AFR session."
+  }
+}
