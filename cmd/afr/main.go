@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
+	"strings"
 
 	afr "afr/internal"
 )
@@ -49,28 +51,33 @@ func realMain(args []string) int {
 }
 
 func verifyCommand(args []string) int {
-	flags := flag.NewFlagSet("afr verify", flag.ContinueOnError)
-	flags.SetOutput(os.Stderr)
-	asJSON := flags.Bool("json", false, "emit JSON")
-	if err := flags.Parse(args); err != nil {
-		return exitUsage
-	}
-	if flags.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "AFR_USAGE: verify requires SESSION|latest and optional --json")
-		return exitUsage
+	asJSON, selector, selectorSet := false, "latest", false
+	for _, argument := range args {
+		switch {
+		case argument == "--json":
+			asJSON = true
+		case strings.HasPrefix(argument, "-"):
+			fmt.Fprintf(os.Stderr, "AFR_USAGE: unknown verify option %q\n", argument)
+			return exitUsage
+		case selectorSet:
+			fmt.Fprintln(os.Stderr, "AFR_USAGE: verify accepts at most one SESSION|latest selector")
+			return exitUsage
+		default:
+			selector, selectorSet = argument, true
+		}
 	}
 	sessionsRoot, err := afr.DefaultSessionsRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
 		return exitAFR
 	}
-	sessionRoot, err := afr.ResolveSessionRoot(sessionsRoot, flags.Arg(0))
+	sessionRoot, err := afr.ResolveSessionRoot(sessionsRoot, selector)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
 		return exitAFR
 	}
 	result := afr.VerifySession(sessionRoot)
-	if *asJSON {
+	if asJSON {
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(result); err != nil {
@@ -97,10 +104,11 @@ func verifyCommand(args []string) int {
 
 func listCommand(args []string) int {
 	flags := flag.NewFlagSet("afr list", flag.ContinueOnError)
-	flags.SetOutput(os.Stderr)
+	flags.SetOutput(io.Discard)
 	limit := flags.Int("limit", 20, "maximum sessions")
 	asJSON := flags.Bool("json", false, "emit JSON")
 	if err := flags.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_USAGE: %v\n", err)
 		return exitUsage
 	}
 	if flags.NArg() != 0 || *limit < 1 {
@@ -137,13 +145,29 @@ func listCommand(args []string) int {
 
 func runCommand(args []string) int {
 	flags := flag.NewFlagSet("afr run", flag.ContinueOnError)
-	flags.SetOutput(os.Stderr)
+	flags.SetOutput(io.Discard)
 	workspace := flags.String("workspace", "", "workspace directory")
-	if err := flags.Parse(args); err != nil {
+	separator := -1
+	for index, argument := range args {
+		if argument == "--" {
+			separator = index
+			break
+		}
+	}
+	if separator < 0 {
+		fmt.Fprintln(os.Stderr, "AFR_USAGE: run requires -- before COMMAND")
 		return exitUsage
 	}
-	argv := flags.Args()
-	if len(argv) == 0 {
+	if err := flags.Parse(args[:separator]); err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_USAGE: %v\n", err)
+		return exitUsage
+	}
+	if flags.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, "AFR_USAGE: run options must appear before --")
+		return exitUsage
+	}
+	argv := args[separator+1:]
+	if len(argv) == 0 || argv[0] == "" {
 		fmt.Fprintln(os.Stderr, "AFR_USAGE: run requires -- COMMAND [ARG...]")
 		return exitUsage
 	}

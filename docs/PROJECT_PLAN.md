@@ -295,15 +295,28 @@ hash = SHA256("AFR-EVENT-v1\n" || prev_hash_bytes || "\n" || exact_body_bytes)
 ### 7.1 命令面
 
 ```text
-afr run [--workspace PATH] [--label TEXT] -- COMMAND [ARG...]
+afr run [--workspace PATH] -- COMMAND [ARG...]
 afr list [--limit N] [--json]
-afr show [SESSION|latest] [--json] [--open]
-afr verify [SESSION|latest] [--json]
+afr show [--json] [--open] [SESSION|latest]
+afr verify [--json] [SESSION|latest]
 afr clean (--older-than DURATION | --max-bytes SIZE) [--yes]
 afr version
 ```
 
 `report` 和 `replay` 不进入首个必需命令面。自动报告已经覆盖日常路径；有证据证明需要重建时再加入 `report`。
+
+冻结的 v0.1 解析契约如下；`[]` 表示可选，命令名和 flag 区分大小写：
+
+| 命令 | 默认值与边界 | 稳定用法错误示例 |
+| --- | --- | --- |
+| `run [--workspace PATH] -- COMMAND [ARG...]` | workspace 为当前目录；第一个独立 `--` 是 AFR 与 child argv 的唯一边界，之后的空格、引号、Unicode 和前导短横线逐项原样传递 | 缺少 `--`、空 command、未知 AFR flag |
+| `list [--limit N] [--json]` | limit=20，按 session ID 倒序；N 必须大于 0 | 多余位置参数、非法 N |
+| `show [--json] [--open] [SESSION\|latest]` | selector 默认为 `latest`；完整 ID 或唯一前缀；`--open` 只打开派生 HTML | selector 歧义、额外参数 |
+| `verify [--json] [SESSION\|latest]` | selector 默认为 `latest`；只读，不修复证据；`--json` 也兼容放在 selector 后 | 多个 selector、未知 flag |
+| `clean (--older-than DURATION \| --max-bytes SIZE) [--yes]` | 恰好一个选择条件；默认只预览；非 TTY 删除必须显式 `--yes` | 无条件、双条件、非法 duration/size |
+| `version` | 无参数，写 stdout | 任意额外参数 |
+
+黄金 argv 示例：`afr run --workspace "C:\work space" -- agent.exe "space arg" "\"quoted\"" 中文 --leading` 必须产生五项 child argv：`agent.exe`、`space arg`、`"quoted"`、`中文`、`--leading`（可执行文件加四个参数），不得重组为 shell 字符串。所有用法错误以 `AFR_USAGE:` 开头、返回 64，且不得创建 session。
 
 ### 7.2 流与退出码
 
@@ -314,6 +327,19 @@ afr version
 - 记录器在启动 child 前失败时返回保留的 AFR 错误码，并且打印稳定错误类别。
 - 记录器在 child 已运行后自身收尾失败时返回 AFR 错误码，同时保留 child exit code 到 `session.json`。
 - `verify`：0 表示通过，2 表示证据不一致，其他值表示读取/用法失败。
+
+冻结数值与脚本判别规则：
+
+| 场景 | 退出码 | stdout | stderr 前缀/内容 |
+| --- | ---: | --- | --- |
+| `run` 完整收尾 | child 原退出码（0–255） | child stdout 原样 | child stderr 原样，末尾另写 `AFR session ...` 摘要 |
+| child 启动前或 AFR 收尾失败 | 70 | 已产生的 child stdout（若有） | `AFR_RUNTIME:`；已分配 session 时追加其目录 |
+| CLI 用法错误 | 64 | 空 | `AFR_USAGE:` |
+| `verify` 通过 | 0 | 文本或 `--json` 结果 | 空 |
+| `verify` 发现不一致 | 2 | `--json` 时为结构化结果，否则空 | 非 JSON 模式以 `AFR_VERIFY:` 开头 |
+| `list/show/verify` 读取失败 | 70 | 空 | `AFR_RUNTIME:` |
+
+child 自身返回 2、64 或 70 时仍属于“完整收尾”，脚本通过 stderr 中是否出现 `AFR_RUNTIME:` / `AFR_USAGE:` 区分 AFR 故障；child 退出码同时持久化到 `session.json.child_exit_code`。AFR 不吞掉 child stderr，也不向 child stdout 注入摘要。
 
 最终数值在 Phase 0 用 Windows 与 CI 行为测试冻结，不能只写文档不测试。
 

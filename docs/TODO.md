@@ -51,11 +51,11 @@
   - 依赖：F0-04、F0-07。
   - 验收：事实、推断、严重度、证据 seq、规则版本、能力缺口和截断声明均有字段。
 
-- [ ] **F0-09 [P0] 冻结 CLI 命令和 argv 边界**
+- [x] **F0-09 [P0] 冻结 CLI 命令和 argv 边界**
   - 依赖：F0-05。
   - 验收：run/list/show/verify/clean/version 的语法、默认值和错误类别有黄金示例；不经 shell 字符串拼接。
 
-- [ ] **F0-10 [P0] 冻结流和退出码契约**
+- [x] **F0-10 [P0] 冻结流和退出码契约**
   - 依赖：F0-09。
   - 验收：child stdout/stderr、AFR 摘要流、child exit code、AFR setup/finalize error 的优先级可由脚本区分。
 
@@ -343,7 +343,7 @@
   - 依赖：M3-04、M1-13。
   - 验收：200 MB 流不会生成 200 MB DOM；报告展示预览、总量和 hash，浏览器可用。
 
-- [ ] **M3-07 [P0] 实现 `afr list`**
+- [x] **M3-07 [P0] 实现 `afr list`**
   - 依赖：M0-17。
   - 验收：只扫描 sessions 一级目录和小型 session.json；坏目录不阻塞其余结果；支持 limit/json。
 

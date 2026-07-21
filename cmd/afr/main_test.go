@@ -17,8 +17,14 @@ func TestUsageErrorCreatesNoSession(t *testing.T) {
 	}
 }
 
-func TestVerifyRequiresOneSessionSelector(t *testing.T) {
-	if code := verifyCommand(nil); code != exitUsage {
+func TestVerifyRejectsMultipleSessionSelectors(t *testing.T) {
+	if code := verifyCommand([]string{"one", "two"}); code != exitUsage {
+		t.Fatalf("exit code = %d, want %d", code, exitUsage)
+	}
+}
+
+func TestRunRequiresArgvSeparator(t *testing.T) {
+	if code := runCommand([]string{"cmd.exe", "/c", "echo hello"}); code != exitUsage {
 		t.Fatalf("exit code = %d, want %d", code, exitUsage)
 	}
 }
