@@ -375,7 +375,7 @@
   - 依赖：M3 P0 功能。
   - 验收：模板 `go:embed`；干净 Windows VM 只放 `afr.exe` 可运行 version/list，并明确提示 Git/Agent 外部前置。
 
-- [ ] **M3-15 [P0] 输出构建与格式版本**
+- [x] **M3-15 [P0] 输出构建与格式版本**
   - 依赖：M3-14。
   - 验收：version 输出 semantic version、commit、build time、event format、manifest format。
 

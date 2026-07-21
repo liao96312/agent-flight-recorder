@@ -167,7 +167,7 @@ func inspectCleanCandidate(root, directoryID string) (cleanCandidate, error) {
 		return cleanCandidate{}, fmt.Errorf("read session %s metadata: %w", directoryID, err)
 	}
 	var metadata SessionMetadata
-	if json.Unmarshal(data, &metadata) != nil || metadata.FormatVersion != 1 || metadata.ID != directoryID {
+	if json.Unmarshal(data, &metadata) != nil || metadata.FormatVersion != SessionFormatVersion || metadata.ID != directoryID {
 		return cleanCandidate{}, fmt.Errorf("refuse forged session metadata %s", directoryID)
 	}
 	timestamp := metadata.FinishedAt

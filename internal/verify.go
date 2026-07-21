@@ -205,7 +205,7 @@ func readManifestForVerify(sessionRoot string) (Manifest, *VerificationIssue) {
 }
 
 func validateManifest(manifest Manifest) *VerificationIssue {
-	if manifest.FormatVersion != 1 {
+	if manifest.FormatVersion != ManifestFormatVersion {
 		return &VerificationIssue{Kind: "manifest", Code: "manifest_version", Path: "manifest.json", Message: "unsupported manifest format", Expected: "1", Actual: fmt.Sprint(manifest.FormatVersion)}
 	}
 	if manifest.SessionID == "" {
@@ -258,7 +258,7 @@ func readSessionForVerify(sessionRoot string) (SessionMetadata, *VerificationIss
 		return SessionMetadata{}, &VerificationIssue{Kind: "session", Code: "session_unreadable", Path: "session.json", Message: "session metadata cannot be read"}
 	}
 	var metadata SessionMetadata
-	if json.Unmarshal(data, &metadata) != nil || metadata.FormatVersion != 1 {
+	if json.Unmarshal(data, &metadata) != nil || metadata.FormatVersion != SessionFormatVersion {
 		return SessionMetadata{}, &VerificationIssue{Kind: "session", Code: "session_invalid", Path: "session.json", Message: "session metadata is invalid"}
 	}
 	return metadata, nil

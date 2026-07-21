@@ -85,7 +85,7 @@ func NewSession(sessionsRoot, workspace string, argv []string, redactor *Redacto
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	s := &Session{Root: root, redactor: redactor, Meta: SessionMetadata{
-		FormatVersion: 1,
+		FormatVersion: SessionFormatVersion,
 		ID:            id,
 		State:         "starting",
 		StartedAt:     now,

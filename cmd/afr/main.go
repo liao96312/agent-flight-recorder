@@ -16,7 +16,11 @@ import (
 	afr "afr/internal"
 )
 
-const version = "0.1.0-dev"
+var (
+	version   = "0.1.0-dev"
+	commit    = "unknown"
+	buildTime = "unknown"
+)
 
 const (
 	exitVerify = 2
@@ -39,7 +43,7 @@ func realMain(args []string) int {
 			fmt.Fprintln(os.Stderr, "AFR_USAGE: version accepts no arguments")
 			return exitUsage
 		}
-		fmt.Println("afr " + version)
+		fmt.Println(versionString())
 		return 0
 	case "run":
 		return runCommand(args[1:])
@@ -56,6 +60,10 @@ func realMain(args []string) int {
 		usage()
 		return exitUsage
 	}
+}
+
+func versionString() string {
+	return fmt.Sprintf("afr %s commit=%s built=%s event_format=%d manifest_format=%d", version, commit, buildTime, afr.EventFormatVersion, afr.ManifestFormatVersion)
 }
 
 func verifyCommand(args []string) int {

@@ -89,7 +89,7 @@ func inspectEventStream(sessionRoot string) (EventInspection, *VerificationIssue
 			if err := json.Unmarshal(raw, &envelope); err != nil {
 				return inspection, &VerificationIssue{Kind: "event", Code: "event_invalid_json", Seq: inspection.ValidEvents + 1, Path: "events.jsonl", Message: fmt.Sprintf("event %d is invalid JSON", inspection.ValidEvents+1)}, nil
 			}
-			if envelope.FormatVersion != 1 {
+			if envelope.FormatVersion != EventFormatVersion {
 				return inspection, &VerificationIssue{Kind: "event", Code: "event_version", Seq: inspection.ValidEvents + 1, Path: "events.jsonl", Message: fmt.Sprintf("event %d has unsupported format", inspection.ValidEvents+1), Expected: "1", Actual: fmt.Sprint(envelope.FormatVersion)}, nil
 			}
 			var body EventBody

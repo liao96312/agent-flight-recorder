@@ -113,7 +113,7 @@ func encodeEvent(prevHash [sha256.Size]byte, body EventBody) ([]byte, [sha256.Si
 	var hash [sha256.Size]byte
 	copy(hash[:], h.Sum(nil))
 	envelope := eventEnvelope{
-		FormatVersion: 1,
+		FormatVersion: EventFormatVersion,
 		PrevHash:      hex.EncodeToString(prevHash[:]),
 		Body:          bodyBytes,
 		Hash:          hex.EncodeToString(hash[:]),

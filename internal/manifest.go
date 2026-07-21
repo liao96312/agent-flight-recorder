@@ -32,7 +32,7 @@ func WriteManifest(sessionRoot, sessionID string, evidencePaths, derivedPaths []
 	if err != nil {
 		return err
 	}
-	manifest := Manifest{FormatVersion: 1, SessionID: sessionID, Evidence: evidence, Derived: derived}
+	manifest := Manifest{FormatVersion: ManifestFormatVersion, SessionID: sessionID, Evidence: evidence, Derived: derived}
 	return atomicWriteJSON(sessionRoot, "manifest.json", manifest, redactor)
 }
 

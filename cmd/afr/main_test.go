@@ -20,6 +20,15 @@ func TestUsageErrorCreatesNoSession(t *testing.T) {
 	}
 }
 
+func TestVersionIncludesBuildAndFormatContracts(t *testing.T) {
+	value := versionString()
+	for _, expected := range []string{"afr 0.1.0-dev", "commit=", "built=", "event_format=1", "manifest_format=1"} {
+		if !strings.Contains(value, expected) {
+			t.Fatalf("version missing %q: %s", expected, value)
+		}
+	}
+}
+
 func TestVerifyRejectsMultipleSessionSelectors(t *testing.T) {
 	if code := verifyCommand([]string{"one", "two"}); code != exitUsage {
 		t.Fatalf("exit code = %d, want %d", code, exitUsage)
