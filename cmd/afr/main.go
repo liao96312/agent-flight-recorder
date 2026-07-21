@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -205,6 +207,7 @@ func cleanCommand(args []string) int {
 	flags.SetOutput(io.Discard)
 	olderText := flags.String("older-than", "", "select sessions older than a duration")
 	maxText := flags.String("max-bytes", "", "select oldest sessions until storage is within size")
+	yes := flags.Bool("yes", false, "delete without an interactive confirmation")
 	if err := flags.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "AFR_USAGE: %v\n", err)
 		return exitUsage
@@ -238,7 +241,50 @@ func cleanCommand(args []string) int {
 	for _, target := range plan.Targets {
 		fmt.Printf("%s\t%d\t%s\n", target.ID, target.Bytes, target.Path)
 	}
+	if len(plan.Targets) == 0 {
+		return 0
+	}
+	if !*yes {
+		if !stdinIsTerminal() {
+			fmt.Fprintln(os.Stderr, "AFR_USAGE: clean deletion requires an interactive terminal or --yes")
+			return exitUsage
+		}
+		confirmed, confirmErr := confirmClean(os.Stdin, os.Stderr)
+		if confirmErr != nil {
+			fmt.Fprintf(os.Stderr, "AFR_RUNTIME: read clean confirmation: %v\n", confirmErr)
+			return exitAFR
+		}
+		if !confirmed {
+			fmt.Fprintln(os.Stderr, "Clean cancelled; nothing deleted.")
+			return 0
+		}
+	}
+	deleted, err := afr.ExecuteClean(plan)
+	for _, target := range deleted {
+		fmt.Printf("Deleted %s\t%d\t%s\n", target.ID, target.Bytes, target.Path)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
+		return exitAFR
+	}
 	return 0
+}
+
+func stdinIsTerminal() bool {
+	info, err := os.Stdin.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
+func confirmClean(input io.Reader, output io.Writer) (bool, error) {
+	if _, err := fmt.Fprint(output, "Delete the listed sessions? [y/N] "); err != nil {
+		return false, err
+	}
+	answer, err := bufio.NewReader(input).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, err
+	}
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	return answer == "y" || answer == "yes", nil
 }
 
 func parseCleanDuration(value string) (time.Duration, error) {
@@ -325,5 +371,5 @@ func runCommand(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr list [--limit N] [--json] | afr show [--json] [SESSION|latest] | afr verify [--json] [SESSION|latest] | afr clean (--older-than DURATION | --max-bytes SIZE)")
+	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr list [--limit N] [--json] | afr show [--json] [SESSION|latest] | afr verify [--json] [SESSION|latest] | afr clean (--older-than DURATION | --max-bytes SIZE) [--yes]")
 }

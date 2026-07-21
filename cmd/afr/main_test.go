@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -45,5 +47,18 @@ func TestCleanValueParsers(t *testing.T) {
 	}
 	if _, err := parseByteSize("0"); err == nil {
 		t.Fatal("zero byte limit accepted")
+	}
+}
+
+func TestCleanConfirmationDefaultsToNo(t *testing.T) {
+	for _, test := range []struct {
+		input string
+		want  bool
+	}{{"\n", false}, {"no\n", false}, {"yes\n", true}, {"Y\n", true}} {
+		var output bytes.Buffer
+		got, err := confirmClean(strings.NewReader(test.input), &output)
+		if err != nil || got != test.want || output.String() == "" {
+			t.Fatalf("input=%q got=%t want=%t output=%q error=%v", test.input, got, test.want, output.String(), err)
+		}
 	}
 }

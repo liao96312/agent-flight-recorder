@@ -29,6 +29,7 @@ type CleanTarget struct {
 type CleanPlan struct {
 	Targets    []CleanTarget `json:"targets"`
 	TotalBytes int64         `json:"total_bytes"`
+	root       string
 }
 
 type cleanCandidate struct {
@@ -46,7 +47,7 @@ func PlanClean(sessionsRoot string, options CleanOptions) (CleanPlan, error) {
 	}
 	entries, err := os.ReadDir(sessionsRoot)
 	if errors.Is(err, os.ErrNotExist) {
-		return CleanPlan{Targets: []CleanTarget{}}, nil
+		return CleanPlan{Targets: []CleanTarget{}, root: sessionsRoot}, nil
 	}
 	if err != nil {
 		return CleanPlan{}, fmt.Errorf("read sessions: %w", err)
@@ -82,7 +83,7 @@ func PlanClean(sessionsRoot string, options CleanOptions) (CleanPlan, error) {
 		}
 		return candidates[i].time.Before(candidates[j].time)
 	})
-	plan := CleanPlan{Targets: []CleanTarget{}}
+	plan := CleanPlan{Targets: []CleanTarget{}, root: sessionsRoot}
 	if options.OlderThan > 0 {
 		cutoff := options.Now.Add(-options.OlderThan)
 		for _, candidate := range candidates {
@@ -116,6 +117,44 @@ func PlanClean(sessionsRoot string, options CleanOptions) (CleanPlan, error) {
 		return CleanPlan{}, errors.New("capacity target cannot be reached without an active session")
 	}
 	return plan, nil
+}
+
+func ExecuteClean(plan CleanPlan) ([]CleanTarget, error) {
+	if len(plan.Targets) == 0 {
+		return []CleanTarget{}, nil
+	}
+	root, err := filepath.Abs(plan.root)
+	if err != nil || !isRealDirectory(root) {
+		return nil, errors.New("clean plan has an invalid sessions root")
+	}
+	for _, target := range plan.Targets {
+		expected, joinErr := safeJoin(root, target.ID)
+		if joinErr != nil || expected != target.Path || filepath.Dir(expected) != root || !sessionIDPattern.MatchString(target.ID) {
+			return nil, fmt.Errorf("refuse changed clean target %s", target.ID)
+		}
+		candidate, inspectErr := inspectCleanCandidate(expected, target.ID)
+		if inspectErr != nil || candidate.active || candidate.Bytes != target.Bytes || candidate.Timestamp != target.Timestamp {
+			return nil, fmt.Errorf("refuse changed or active clean target %s", target.ID)
+		}
+	}
+	deleted := make([]CleanTarget, 0, len(plan.Targets))
+	for _, target := range plan.Targets {
+		quarantine, joinErr := safeJoin(root, ".deleting-"+target.ID)
+		if joinErr != nil {
+			return deleted, joinErr
+		}
+		if _, statErr := os.Lstat(quarantine); !errors.Is(statErr, os.ErrNotExist) {
+			return deleted, fmt.Errorf("refuse occupied clean quarantine for %s", target.ID)
+		}
+		if err := os.Rename(target.Path, quarantine); err != nil {
+			return deleted, fmt.Errorf("isolate clean target %s: %w", target.ID, err)
+		}
+		if err := os.RemoveAll(quarantine); err != nil {
+			return deleted, fmt.Errorf("delete clean target %s: %w", target.ID, err)
+		}
+		deleted = append(deleted, target)
+	}
+	return deleted, nil
 }
 
 func inspectCleanCandidate(root, directoryID string) (cleanCandidate, error) {

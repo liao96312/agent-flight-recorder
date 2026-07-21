@@ -51,6 +51,43 @@ func TestPlanCleanCapacityIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestExecuteCleanRevalidatesThenDeletesExactTargets(t *testing.T) {
+	root := t.TempDir()
+	first := completedCleanSession(t, root)
+	second := completedCleanSession(t, root)
+	plan, err := PlanClean(root, CleanOptions{OlderThan: time.Hour, Now: time.Now().Add(48 * time.Hour)})
+	if err != nil || len(plan.Targets) != 2 {
+		t.Fatalf("plan=%+v error=%v", plan, err)
+	}
+	deleted, err := ExecuteClean(plan)
+	if err != nil || len(deleted) != 2 {
+		t.Fatalf("deleted=%+v error=%v", deleted, err)
+	}
+	for _, session := range []*Session{first, second} {
+		if _, err := os.Stat(session.Root); !os.IsNotExist(err) {
+			t.Fatalf("session still exists: %s", session.Root)
+		}
+	}
+}
+
+func TestExecuteCleanRefusesTargetChangedAfterPreview(t *testing.T) {
+	root := t.TempDir()
+	session := completedCleanSession(t, root)
+	plan, err := PlanClean(root, CleanOptions{OlderThan: time.Hour, Now: time.Now().Add(48 * time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(session.Root, "changed"), []byte("changed"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExecuteClean(plan); err == nil {
+		t.Fatal("changed target was deleted")
+	}
+	if _, err := os.Stat(session.Root); err != nil {
+		t.Fatalf("refused session was changed: %v", err)
+	}
+}
+
 func completedCleanSession(t *testing.T, root string) *Session {
 	t.Helper()
 	session, err := NewSession(root, t.TempDir(), []string{"agent"}, testRedactor(t))
