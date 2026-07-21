@@ -319,15 +319,15 @@
 
 阶段出口：开发者能记录、查找、复核、验证和安全清理会话；Windows 干净 VM 和两个薄插件均冒烟通过。
 
-- [ ] **M3-01 [P0] 实现统一 Report View Model**
+- [x] **M3-01 [P0] 实现统一 Report View Model**
   - 依赖：F0-08、M1、M2。
   - 验收：Markdown/JSON/HTML 共用同一状态、能力、事件、变更和风险排序。
 
-- [ ] **M3-02 [P0] 生成 `agent-flight.md`**
+- [x] **M3-02 [P0] 生成 `agent-flight.md`**
   - 依赖：M3-01。
   - 验收：短摘要包含状态、child exit、能力矩阵、变更、最高风险、截断/缺口、verify 说明。
 
-- [ ] **M3-03 [P0] 生成 `agent-risk.json`**
+- [x] **M3-03 [P0] 生成 `agent-risk.json`**
   - 依赖：M3-01。
   - 验收：schema/version 固定；只含已脱敏事实和风险；排序可复现。
 

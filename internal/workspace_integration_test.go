@@ -35,8 +35,13 @@ func TestRunCapturesNonGitDelta(t *testing.T) {
 	if !reflect.DeepEqual(delta.Added, []string{"added.txt"}) || !reflect.DeepEqual(delta.Modified, []string{"modify.txt"}) || !reflect.DeepEqual(delta.Renamed, []RenameEvidence{{From: "rename.txt", To: "renamed.txt"}}) || delta.Partial {
 		t.Fatalf("delta=%+v", delta)
 	}
-	if verification := VerifySession(result.SessionDir); !verification.Valid {
+	if verification := VerifySession(result.SessionDir); !verification.Valid || verification.DerivedChecked != len(derivedReportPaths) {
 		t.Fatalf("verification=%+v", verification)
+	}
+	for _, relative := range derivedReportPaths {
+		if _, err := os.Stat(filepath.Join(result.SessionDir, relative)); err != nil {
+			t.Fatalf("derived report %s: %v", relative, err)
+		}
 	}
 }
 

@@ -345,6 +345,7 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		_ = writer.Close()
 		return result, err
 	}
+	eventCounts := writer.Counts()
 	seq, hash := writer.Snapshot()
 	if err := writer.Close(); err != nil {
 		return result, err
@@ -352,7 +353,11 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 	if err := session.Finish("completed", &exitCode, seq, hash); err != nil {
 		return result, err
 	}
-	if err := WriteManifest(session.Root, session.Meta.ID, requiredEvidencePaths, nil, redactor); err != nil {
+	view := NewReportView(session.Meta, delta, findings, eventCounts)
+	if err := WriteReportArtifacts(session.Root, view, redactor); err != nil {
+		return result, err
+	}
+	if err := WriteManifest(session.Root, session.Meta.ID, requiredEvidencePaths, derivedReportPaths, redactor); err != nil {
 		return result, err
 	}
 	captureMu.Lock()
