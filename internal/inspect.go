@@ -31,6 +31,13 @@ type SessionSummary struct {
 	TornTailBytes int    `json:"torn_tail_bytes,omitempty"`
 }
 
+type ShowResult struct {
+	Session      SessionSummary `json:"session"`
+	MarkdownPath string         `json:"markdown_path,omitempty"`
+	RiskJSONPath string         `json:"risk_json_path,omitempty"`
+	HTMLPath     string         `json:"html_path,omitempty"`
+}
+
 const maxEventLineBytes = 8 * 1024 * 1024
 
 func InspectEvents(sessionRoot string) (EventInspection, error) {
@@ -151,31 +158,66 @@ func ListSessions(sessionsRoot string) ([]SessionSummary, error) {
 		if err != nil {
 			continue
 		}
-		summary := SessionSummary{ID: entry.Name(), State: "incomplete", Incomplete: true}
-		metadataPath, err := safeJoin(root, "session.json")
-		if err == nil {
-			if data, readErr := os.ReadFile(metadataPath); readErr == nil {
-				var metadata SessionMetadata
-				if json.Unmarshal(data, &metadata) == nil {
-					summary.ID = metadata.ID
-					summary.State = metadata.State
-					summary.StartedAt = metadata.StartedAt
-					summary.ChildExitCode = metadata.ChildExitCode
-				}
-			}
-		}
-		inspection, inspectErr := InspectEvents(root)
-		if inspectErr != nil {
-			summary.State = "incomplete"
-		} else {
-			summary.TornTailBytes = inspection.TornTailBytes
-			summary.Incomplete = inspection.TornTailBytes > 0 || inspection.LastEventType != "session_finished" || (summary.State != "completed" && summary.State != "failed")
-			if summary.Incomplete {
-				summary.State = "incomplete"
-			}
-		}
-		summaries = append(summaries, summary)
+		summaries = append(summaries, inspectSessionSummary(root, entry.Name()))
 	}
 	sort.Slice(summaries, func(i, j int) bool { return summaries[i].ID > summaries[j].ID })
 	return summaries, nil
+}
+
+func ShowSession(sessionRoot string) (ShowResult, error) {
+	if !isRealDirectory(sessionRoot) {
+		return ShowResult{}, errors.New("session is not a real directory")
+	}
+	result := ShowResult{Session: inspectSessionSummary(sessionRoot, filepath.Base(sessionRoot))}
+	if result.Session.Incomplete {
+		return result, nil
+	}
+	for relative, destination := range map[string]*string{
+		"agent-flight.md": &result.MarkdownPath,
+		"agent-risk.json": &result.RiskJSONPath,
+		"report.html":     &result.HTMLPath,
+	} {
+		path, err := safeJoin(sessionRoot, relative)
+		if err == nil && isBoundedRegularFile(path, 16*1024*1024) {
+			*destination = path
+		}
+	}
+	return result, nil
+}
+
+func ReadMarkdownReport(path string) ([]byte, error) {
+	if path == "" || !isBoundedRegularFile(path, 16*1024*1024) {
+		return nil, errors.New("Markdown report is unavailable")
+	}
+	return os.ReadFile(path)
+}
+
+func inspectSessionSummary(root, directoryID string) SessionSummary {
+	summary := SessionSummary{ID: directoryID, State: "incomplete", Incomplete: true}
+	metadataPath, err := safeJoin(root, "session.json")
+	if err == nil && isBoundedRegularFile(metadataPath, maxSessionBytes) {
+		if data, readErr := os.ReadFile(metadataPath); readErr == nil {
+			var metadata SessionMetadata
+			if json.Unmarshal(data, &metadata) == nil && metadata.ID == directoryID {
+				summary.State = metadata.State
+				summary.StartedAt = metadata.StartedAt
+				summary.ChildExitCode = metadata.ChildExitCode
+			}
+		}
+	}
+	inspection, inspectErr := InspectEvents(root)
+	if inspectErr != nil {
+		return summary
+	}
+	summary.TornTailBytes = inspection.TornTailBytes
+	summary.Incomplete = inspection.TornTailBytes > 0 || inspection.LastEventType != "session_finished" || (summary.State != "completed" && summary.State != "failed")
+	if summary.Incomplete {
+		summary.State = "incomplete"
+	}
+	return summary
+}
+
+func isBoundedRegularFile(path string, limit int64) bool {
+	info, err := os.Lstat(path)
+	return err == nil && info.Mode().IsRegular() && info.Mode()&os.ModeSymlink == 0 && info.Size() <= limit
 }

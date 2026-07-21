@@ -9,6 +9,7 @@ go build ./cmd/fake-agent
 ./afr.exe version
 ./afr.exe run -- cmd.exe /d /c "echo hello"
 ./afr.exe list --json
+./afr.exe show latest
 ./afr.exe verify latest --json
 ```
 

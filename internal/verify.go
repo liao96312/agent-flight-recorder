@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 const (
@@ -121,7 +122,7 @@ func VerifySession(sessionRoot string) VerifyResult {
 }
 
 func ResolveSessionRoot(sessionsRoot, selector string) (string, error) {
-	if selector == "" {
+	if selector == "" || !filepath.IsLocal(selector) || filepath.Base(selector) != selector {
 		return "", errors.New("session selector is required")
 	}
 	if selector == "latest" {
@@ -131,7 +132,7 @@ func ResolveSessionRoot(sessionsRoot, selector string) (string, error) {
 		}
 		names := []string{}
 		for _, entry := range entries {
-			if entry.IsDir() && filepath.IsLocal(entry.Name()) {
+			if entry.IsDir() && filepath.IsLocal(entry.Name()) && isRealDirectory(filepath.Join(sessionsRoot, entry.Name())) {
 				names = append(names, entry.Name())
 			}
 		}
@@ -145,14 +146,31 @@ func ResolveSessionRoot(sessionsRoot, selector string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	info, err := os.Lstat(root)
-	if err != nil {
-		return "", fmt.Errorf("find session %s: %w", selector, err)
+	if isRealDirectory(root) {
+		return root, nil
 	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return "", errors.New("session is not a real directory")
+	entries, readErr := os.ReadDir(sessionsRoot)
+	if readErr != nil {
+		return "", fmt.Errorf("read sessions: %w", readErr)
 	}
-	return root, nil
+	matches := []string{}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), selector) && filepath.IsLocal(entry.Name()) && isRealDirectory(filepath.Join(sessionsRoot, entry.Name())) {
+			matches = append(matches, entry.Name())
+		}
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("find session %s: %w", selector, os.ErrNotExist)
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("session prefix %q is ambiguous", selector)
+	}
+	return safeJoin(sessionsRoot, matches[0])
+}
+
+func isRealDirectory(path string) bool {
+	info, err := os.Lstat(path)
+	return err == nil && info.IsDir() && info.Mode()&os.ModeSymlink == 0
 }
 
 func readManifestForVerify(sessionRoot string) (Manifest, *VerificationIssue) {

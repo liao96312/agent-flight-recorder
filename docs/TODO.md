@@ -347,7 +347,7 @@
   - 依赖：M0-17。
   - 验收：只扫描 sessions 一级目录和小型 session.json；坏目录不阻塞其余结果；支持 limit/json。
 
-- [ ] **M3-08 [P0] 实现 `afr show`**
+- [x] **M3-08 [P0] 实现 `afr show`**
   - 依赖：M3-01、M3-07。
   - 验收：完整 ID、唯一前缀、latest 可用；歧义明确失败；incomplete 生成只读摘要。
 

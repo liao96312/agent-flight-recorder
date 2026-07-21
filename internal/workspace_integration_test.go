@@ -43,6 +43,10 @@ func TestRunCapturesNonGitDelta(t *testing.T) {
 			t.Fatalf("derived report %s: %v", relative, err)
 		}
 	}
+	shown, err := ShowSession(result.SessionDir)
+	if err != nil || shown.Session.Incomplete || shown.MarkdownPath == "" || shown.RiskJSONPath == "" || shown.HTMLPath == "" {
+		t.Fatalf("show=%+v error=%v", shown, err)
+	}
 }
 
 func TestRunSeparatesGitPreExistingChanges(t *testing.T) {

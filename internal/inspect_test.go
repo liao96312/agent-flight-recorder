@@ -71,3 +71,36 @@ func TestListMissingRootIsEmptyNotNull(t *testing.T) {
 		t.Fatalf("summaries=%v error=%v", summaries, err)
 	}
 }
+
+func TestShowIncompleteSessionDoesNotWrite(t *testing.T) {
+	sessions := filepath.Join(t.TempDir(), "sessions")
+	redactor := testRedactor(t)
+	session, err := NewSession(sessions, t.TempDir(), []string{"agent"}, redactor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer, err := NewEventWriter(session.Root, redactor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.Append("session_started", "afr", map[string]string{"id": session.Meta.ID}, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(session.Root, "agent-flight.md"), []byte("stale"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := os.ReadFile(filepath.Join(session.Root, "session.json"))
+	beforeEntries, _ := os.ReadDir(session.Root)
+	result, err := ShowSession(session.Root)
+	if err != nil || !result.Session.Incomplete || result.Session.State != "incomplete" || result.MarkdownPath != "" || result.HTMLPath != "" {
+		t.Fatalf("result=%+v error=%v", result, err)
+	}
+	after, _ := os.ReadFile(filepath.Join(session.Root, "session.json"))
+	afterEntries, _ := os.ReadDir(session.Root)
+	if !bytes.Equal(before, after) || len(beforeEntries) != len(afterEntries) {
+		t.Fatal("show mutated incomplete session")
+	}
+}

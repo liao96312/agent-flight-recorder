@@ -41,6 +41,8 @@ func realMain(args []string) int {
 		return runCommand(args[1:])
 	case "list":
 		return listCommand(args[1:])
+	case "show":
+		return showCommand(args[1:])
 	case "verify":
 		return verifyCommand(args[1:])
 	default:
@@ -51,20 +53,10 @@ func realMain(args []string) int {
 }
 
 func verifyCommand(args []string) int {
-	asJSON, selector, selectorSet := false, "latest", false
-	for _, argument := range args {
-		switch {
-		case argument == "--json":
-			asJSON = true
-		case strings.HasPrefix(argument, "-"):
-			fmt.Fprintf(os.Stderr, "AFR_USAGE: unknown verify option %q\n", argument)
-			return exitUsage
-		case selectorSet:
-			fmt.Fprintln(os.Stderr, "AFR_USAGE: verify accepts at most one SESSION|latest selector")
-			return exitUsage
-		default:
-			selector, selectorSet = argument, true
-		}
+	asJSON, selector, err := parseJSONSelector("verify", args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_USAGE: %v\n", err)
+		return exitUsage
 	}
 	sessionsRoot, err := afr.DefaultSessionsRoot()
 	if err != nil {
@@ -100,6 +92,67 @@ func verifyCommand(args []string) int {
 		return exitVerify
 	}
 	return 0
+}
+
+func showCommand(args []string) int {
+	asJSON, selector, err := parseJSONSelector("show", args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_USAGE: %v\n", err)
+		return exitUsage
+	}
+	sessionsRoot, err := afr.DefaultSessionsRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
+		return exitAFR
+	}
+	sessionRoot, err := afr.ResolveSessionRoot(sessionsRoot, selector)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
+		return exitAFR
+	}
+	result, err := afr.ShowSession(sessionRoot)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
+		return exitAFR
+	}
+	if asJSON {
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(result); err != nil {
+			fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
+			return exitAFR
+		}
+		return 0
+	}
+	if report, err := afr.ReadMarkdownReport(result.MarkdownPath); err == nil {
+		_, _ = os.Stdout.Write(report)
+		return 0
+	}
+	fmt.Printf("Session: %s\nState: %s\nStarted: %s\n", result.Session.ID, result.Session.State, result.Session.StartedAt)
+	if result.Session.ChildExitCode != nil {
+		fmt.Printf("Child exit: %d\n", *result.Session.ChildExitCode)
+	}
+	if result.Session.TornTailBytes > 0 {
+		fmt.Printf("Torn tail: %d bytes\n", result.Session.TornTailBytes)
+	}
+	return 0
+}
+
+func parseJSONSelector(command string, args []string) (bool, string, error) {
+	asJSON, selector, selectorSet := false, "latest", false
+	for _, argument := range args {
+		switch {
+		case argument == "--json":
+			asJSON = true
+		case strings.HasPrefix(argument, "-"):
+			return false, "", fmt.Errorf("unknown %s option %q", command, argument)
+		case selectorSet:
+			return false, "", fmt.Errorf("%s accepts at most one SESSION|latest selector", command)
+		default:
+			selector, selectorSet = argument, true
+		}
+	}
+	return asJSON, selector, nil
 }
 
 func listCommand(args []string) int {
@@ -192,5 +245,5 @@ func runCommand(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr list [--limit N] [--json] | afr verify [--json] SESSION|latest")
+	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr list [--limit N] [--json] | afr show [--json] [SESSION|latest] | afr verify [--json] [SESSION|latest]")
 }

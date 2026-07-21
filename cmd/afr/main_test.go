@@ -28,3 +28,9 @@ func TestRunRequiresArgvSeparator(t *testing.T) {
 		t.Fatalf("exit code = %d, want %d", code, exitUsage)
 	}
 }
+
+func TestShowRejectsUnimplementedOpenOption(t *testing.T) {
+	if code := showCommand([]string{"--open"}); code != exitUsage {
+		t.Fatalf("exit code = %d, want %d", code, exitUsage)
+	}
+}

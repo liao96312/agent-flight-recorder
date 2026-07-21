@@ -111,6 +111,13 @@ func TestResolveSessionRootLatest(t *testing.T) {
 	if _, err := ResolveSessionRoot(root, "../escape"); err == nil {
 		t.Fatal("escaping selector accepted")
 	}
+	unique, err := ResolveSessionRoot(root, "20260102")
+	if err != nil || filepath.Base(unique) != "20260102-b" {
+		t.Fatalf("unique=%q error=%v", unique, err)
+	}
+	if _, err := ResolveSessionRoot(root, "2026"); err == nil {
+		t.Fatal("ambiguous selector accepted")
+	}
 }
 
 func createVerifiableSession(t *testing.T, withDerived bool) string {
