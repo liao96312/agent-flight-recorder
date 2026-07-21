@@ -136,18 +136,29 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		return finishSetupFailure(session, writer, result, "start_child", err)
 	}
 	defer tree.close()
-	stdout, err := cmd.StdoutPipe()
+	stdout, stdoutWriter, err := os.Pipe()
 	if err != nil {
 		return finishSetupFailure(session, writer, result, "start_child", err)
 	}
-	stderr, err := cmd.StderrPipe()
+	defer stdout.Close()
+	stderr, stderrWriter, err := os.Pipe()
 	if err != nil {
+		_ = stdoutWriter.Close()
 		return finishSetupFailure(session, writer, result, "start_child", err)
 	}
+	defer stderr.Close()
+	cmd.Stdout = stdoutWriter
+	cmd.Stderr = stderrWriter
 	started := time.Now()
 	if err := cmd.Start(); err != nil {
+		_ = stdoutWriter.Close()
+		_ = stderrWriter.Close()
 		return finishSetupFailure(session, writer, result, "start_child", err)
 	}
+	// The child owns duplicated write handles after Start. Closing the parent's
+	// copies lets readers observe EOF without exec.Cmd.Wait racing to close them.
+	_ = stdoutWriter.Close()
+	_ = stderrWriter.Close()
 	if err := tree.afterStart(cmd); err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()

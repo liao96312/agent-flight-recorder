@@ -19,3 +19,6 @@ $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$((Get-Location).Dr
 
 $env:AFR_PERF = '1'
 go test ./internal -run TestLargeRepositoryPerformance -count=1 -v
+if ($LASTEXITCODE -ne 0) {
+    throw 'performance fixture failed'
+}
