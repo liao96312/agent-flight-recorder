@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "afr",
+  "displayName": "Agent Flight Recorder",
+  "version": "0.1.0",
+  "description": "Record, inspect, and verify local coding-agent runs with the Agent Flight Recorder CLI.",
+  "author": {
+    "name": "liao96312"
+  },
+  "homepage": "https://github.com/liao96312/agent-flight-recorder",
+  "repository": "https://github.com/liao96312/agent-flight-recorder",
+  "keywords": ["audit", "coding-agent", "flight-recorder"]
+}

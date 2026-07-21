@@ -371,7 +371,7 @@
   - 依赖：M3-11。
   - 验收：按 session 整体选取；不会后台自动运行；选择规则确定、可预览。
 
-- [ ] **M3-14 [P0] 生成 Windows x64 单文件**
+- [x] **M3-14 [P0] 生成 Windows x64 单文件**
   - 依赖：M3 P0 功能。
   - 验收：模板 `go:embed`；干净 Windows VM 只放 `afr.exe` 可运行 version/list，并明确提示 Git/Agent 外部前置。
 
@@ -379,15 +379,15 @@
   - 依赖：M3-14。
   - 验收：version 输出 semantic version、commit、build time、event format、manifest format。
 
-- [ ] **M3-16 [P0] 创建共享插件根**
+- [x] **M3-16 [P0] 创建共享插件根**
   - 依赖：F0-02、M3-14。
   - 验收：同一目录包含 `.codex-plugin/plugin.json`、`.claude-plugin/plugin.json`、`skills/afr/SKILL.md`；无 hooks、MCP、daemon。
 
-- [ ] **M3-17 [P0] 编写薄 `afr` skill**
+- [x] **M3-17 [P0] 编写薄 `afr` skill**
   - 依赖：M3-16、F0-09。
   - 验收：检查 CLI、构造非交互 argv、声明“启动新记录任务”、show/verify；不声称追溯当前会话。
 
-- [ ] **M3-18 [P0] 校验 Codex 插件**
+- [x] **M3-18 [P0] 校验 Codex 插件**
   - 依赖：M3-16、M3-17。
   - 验收：官方/本地 validator 通过；本地 marketplace 能发现；skill 能启动一次 `afr run -- codex exec ...`。
 
