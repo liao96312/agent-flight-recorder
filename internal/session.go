@@ -20,6 +20,7 @@ type SessionMetadata struct {
 	Workspace     string   `json:"workspace"`
 	Executable    string   `json:"executable"`
 	ArgCount      int      `json:"arg_count"`
+	RecorderPID   int      `json:"recorder_pid,omitempty"`
 	ChildExitCode *int     `json:"child_exit_code,omitempty"`
 	FinalEventSeq uint64   `json:"final_event_seq,omitempty"`
 	FinalHash     string   `json:"final_hash,omitempty"`
@@ -91,6 +92,7 @@ func NewSession(sessionsRoot, workspace string, argv []string, redactor *Redacto
 		Workspace:     workspace,
 		Executable:    filepath.Base(argv[0]),
 		ArgCount:      len(argv) - 1,
+		RecorderPID:   os.Getpid(),
 		Capabilities: []string{
 			"process=observed",
 			"workspace_git=not_observable",
@@ -114,6 +116,7 @@ func (s *Session) Finish(state string, exitCode *int, seq uint64, finalHash stri
 	s.Meta.State = state
 	s.Meta.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	s.Meta.ChildExitCode = exitCode
+	s.Meta.RecorderPID = 0
 	s.Meta.FinalEventSeq = seq
 	s.Meta.FinalHash = finalHash
 	return atomicWriteJSON(s.Root, "session.json", s.Meta, s.redactor)

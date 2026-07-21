@@ -11,6 +11,7 @@ go build ./cmd/fake-agent
 ./afr.exe list --json
 ./afr.exe show latest
 ./afr.exe verify latest --json
+./afr.exe clean --older-than 30d
 ```
 
 会话默认写入 `~/.afr/sessions/<session-id>`。POSIX 请求目录 `0700`、文件 `0600`；Windows 依赖当前用户私有目录的继承 ACL，Go 的 POSIX mode 参数本身不构成额外 ACL 保证。

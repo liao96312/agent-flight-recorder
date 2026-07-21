@@ -359,7 +359,7 @@
   - 依赖：M2-16、M3-01。
   - 验收：先 verify evidence，只更新 derived 文件与 derived hashes；events/evidence 条目字节不变。
 
-- [ ] **M3-11 [P0] 实现 `afr clean` 精确目标预览**
+- [x] **M3-11 [P0] 实现 `afr clean` 精确目标预览**
   - 依赖：M0-03、M3-07。
   - 验收：只接受解析出的合法 session 目录；不使用模糊路径；活跃/伪造/链接目录拒绝。
 

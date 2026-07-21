@@ -7,7 +7,9 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
+	"time"
 
 	afr "afr/internal"
 )
@@ -43,6 +45,8 @@ func realMain(args []string) int {
 		return listCommand(args[1:])
 	case "show":
 		return showCommand(args[1:])
+	case "clean":
+		return cleanCommand(args[1:])
 	case "verify":
 		return verifyCommand(args[1:])
 	default:
@@ -196,6 +200,82 @@ func listCommand(args []string) int {
 	return 0
 }
 
+func cleanCommand(args []string) int {
+	flags := flag.NewFlagSet("afr clean", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	olderText := flags.String("older-than", "", "select sessions older than a duration")
+	maxText := flags.String("max-bytes", "", "select oldest sessions until storage is within size")
+	if err := flags.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_USAGE: %v\n", err)
+		return exitUsage
+	}
+	if flags.NArg() != 0 || (*olderText == "") == (*maxText == "") {
+		fmt.Fprintln(os.Stderr, "AFR_USAGE: clean requires exactly one of --older-than DURATION or --max-bytes SIZE")
+		return exitUsage
+	}
+	options := afr.CleanOptions{}
+	var err error
+	if *olderText != "" {
+		options.OlderThan, err = parseCleanDuration(*olderText)
+	} else {
+		options.MaxBytes, err = parseByteSize(*maxText)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_USAGE: %v\n", err)
+		return exitUsage
+	}
+	root, err := afr.DefaultSessionsRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
+		return exitAFR
+	}
+	plan, err := afr.PlanClean(root, options)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
+		return exitAFR
+	}
+	fmt.Printf("Clean preview: %d sessions, %d bytes\n", len(plan.Targets), plan.TotalBytes)
+	for _, target := range plan.Targets {
+		fmt.Printf("%s\t%d\t%s\n", target.ID, target.Bytes, target.Path)
+	}
+	return 0
+}
+
+func parseCleanDuration(value string) (time.Duration, error) {
+	if strings.HasSuffix(value, "d") {
+		days, err := strconv.ParseInt(strings.TrimSuffix(value, "d"), 10, 64)
+		if err != nil || days <= 0 || days > int64((1<<63-1)/(24*time.Hour)) {
+			return 0, fmt.Errorf("invalid clean duration %q", value)
+		}
+		return time.Duration(days) * 24 * time.Hour, nil
+	}
+	duration, err := time.ParseDuration(value)
+	if err != nil || duration <= 0 {
+		return 0, fmt.Errorf("invalid clean duration %q", value)
+	}
+	return duration, nil
+}
+
+func parseByteSize(value string) (int64, error) {
+	upper := strings.ToUpper(strings.TrimSpace(value))
+	multiplier := int64(1)
+	for _, suffix := range []struct {
+		name       string
+		multiplier int64
+	}{{"GIB", 1 << 30}, {"MIB", 1 << 20}, {"KIB", 1 << 10}, {"GB", 1_000_000_000}, {"MB", 1_000_000}, {"KB", 1_000}, {"B", 1}} {
+		if strings.HasSuffix(upper, suffix.name) {
+			upper = strings.TrimSpace(strings.TrimSuffix(upper, suffix.name))
+			multiplier = suffix.multiplier
+			break
+		}
+	}
+	amount, err := strconv.ParseInt(upper, 10, 64)
+	if err != nil || amount <= 0 || amount > (1<<63-1)/multiplier {
+		return 0, fmt.Errorf("invalid byte size %q", value)
+	}
+	return amount * multiplier, nil
+}
+
 func runCommand(args []string) int {
 	flags := flag.NewFlagSet("afr run", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -245,5 +325,5 @@ func runCommand(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr list [--limit N] [--json] | afr show [--json] [SESSION|latest] | afr verify [--json] [SESSION|latest]")
+	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr list [--limit N] [--json] | afr show [--json] [SESSION|latest] | afr verify [--json] [SESSION|latest] | afr clean (--older-than DURATION | --max-bytes SIZE)")
 }
