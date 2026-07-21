@@ -46,9 +46,10 @@ flowchart LR
   Workspace --> Redact
   Redact --> Events["events.jsonl 哈希链"]
   Redact --> Artifacts["快照 + patch"]
+  Redact --> Reports["Markdown / JSON / 离线 HTML"]
   Events --> Manifest["manifest.json"]
   Artifacts --> Manifest
-  Manifest --> Reports["Markdown / JSON / 离线 HTML"]
+  Reports --> Manifest
   Manifest --> Verify["afr verify"]
 ```
 
@@ -143,4 +144,4 @@ docs/         计划、TODO、架构、安全、快速开始与发布检查表
 
 ## 当前状态
 
-Windows x64 v0.1 P0 验收已完成。Linux/macOS、宿主原生 hooks、数字签名、远端见证、索引和团队服务明确不属于 v0.1 范围。
+Windows x64 v0.1 核心候选实现已合并，但尚未正式发布。剩余发布门槛是 HTML 有界事件时间线、完整运行摘要、License 决策、已登录 Claude 冒烟、干净 VM 验证、公开 tag/Release 与回下载验证；原生 hooks 和更大的平台能力继续由真实数据门控制。

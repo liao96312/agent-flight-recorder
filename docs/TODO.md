@@ -3,6 +3,7 @@
 > 与 [PROJECT_PLAN.md](./PROJECT_PLAN.md) 同步维护。任务只有在“验收”可重复通过后才能勾选。
 > 优先级：P0 发布阻塞；P1 正式可用增强；P2 有真实需求后再做。
 > 估算假设：1 名全职开发者，Windows x64 为 v0.1 发布平台。
+> 当前基线：v0.1 核心候选实现已合并到公开仓库；`M3-22` / `M3-23`、License、正式 tag / Release 和两项人工发布门槛尚未完成。
 
 ## 0. 当前状态
 
@@ -14,6 +15,24 @@
 
 - [x] **PLAN-03 [P0] 写出规划、TODO 与 PlantUML**
   - 产物：`PROJECT_PLAN.md`、本文件、`architecture.puml`。
+
+- [x] **PLAN-04 [P0] 重新对照源方案、实现和发布真值**
+  - 结果：确认两个 P0 代码差距、六个 P0 发布动作、四组 P1 增强与 20 次会话数据门；移除 `show --open` / `--summary-json` 的过期 v0.1 承诺。
+
+### 0.1 下一步唯一执行队列
+
+同一任务只在后文保留一个复选框；本表引用 canonical ID，不复制状态。License 和宿主登录等待期间，继续推进不依赖外部权限的 P0 项。
+
+| 顺序 | 任务 | 当前阻塞 | 进入下一项的条件 |
+|---:|---|---|---|
+| 1 | `M3-22`、`M3-23` | 无 | HTML 时间线和六项运行摘要的测试通过 |
+| 2 | `REL-01` | 需要产品负责人选择 License | License 文件与文档一致；可与顺序 1 并行 |
+| 3 | `REL-02`、`REL-03` | 已登录 Claude 账户、独立干净 Windows VM | 两项人工证据写入发布检查表 |
+| 4 | `REL-04` | 顺序 1 和 3 | 最终 `main` commit 的 release-check、CI、版本和 SHA 一致 |
+| 5 | `REL-05`、`REL-06` | `REL-01`、`REL-04` | 公开 Release 完成，回下载与公共安装复验通过 |
+| 6A | `M3-09` → `M1-11` → `M2-07` → `M0-15` / `R0-05` | `REL-06` 后启动；均为 P1 | 每项独立验收，不捆绑 hooks 或平台服务 |
+| 6B | `R0-09` | `REL-06` 后与 6A 并行 | 完成 20 条本地真实会话评审；每条记录 version/commit，允许区分期间发布的补丁版 |
+| 7 | `DEC-01` | `R0-09` | 只选择一个有重复证据的方向，或明确保持现状 |
 
 ## 1. Phase 0：契约冻结（2 天）
 
@@ -137,7 +156,8 @@
 
 - [ ] **M0-15 [P1] Unix process group 实现**
   - 依赖：M0-13。
-  - 验收：Linux/macOS 冒烟中可终止完整进程组；不阻塞 Windows v0.1。
+  - 当前：`internal/process_unix.go` 已使用 `Setpgid` 并向负 PID 发送 SIGINT / SIGKILL；不能因已有代码直接勾选。
+  - 验收：增加 `!windows` 孙进程终止测试，并在 Linux/macOS 冒烟中证明完整进程组终止；不阻塞 Windows v0.1.0。
 
 - [x] **M0-16 [P0] 实现 torn-tail 只读检测**
   - 依赖：M0-06。
@@ -205,7 +225,8 @@
 
 - [ ] **M1-11 [P1] 实现有限 `.afrignore`**
   - 依赖：M1-10、F0-11。
-  - 验收：注释、路径前缀、stdlib glob 行为有测试；文档明确不等同完整 gitignore。
+  - 当前：扫描器只固定跳过 `.git`，没有配置文件读取。
+  - 验收：注释、空行、路径前缀、stdlib glob、非法模式和 Windows 分隔符行为有测试；文档明确不等同完整 gitignore。
 
 - [x] **M1-12 [P0] 实现扫描预算**
   - 依赖：M1-10。
@@ -220,7 +241,7 @@
   - 验收：停止保存正文但保留文件摘要、总字节和会话级 HMAC 指纹；报告显式 truncated。
 
 - [x] **M1-15 [P0] 大仓库基准**
-  - 依赖：F0-14、M1-04 至 M1-12。
+  - 依赖：F0-14、M1-04 至 M1-10、M1-12；P1 的 M1-11 不阻塞基准。
   - 验收：输出分阶段耗时；在固定 fixture 上达到目标或形成有证据的调整提案。
 
 - [x] **M1-16 [P0] M1 端到端测试**
@@ -257,7 +278,8 @@
 
 - [ ] **M2-07 [P1] 实现 `.afr.json` 自定义 RE2 规则**
   - 依赖：F0-11、M2-01。
-  - 验收：无效正则在启动前失败；规则有名称、类型和测试；不支持任意代码。
+  - 当前：只有内置 detector；README / 安装文档不得声称 workspace 配置已可用。
+  - 验收：冻结最小 schema；无效 JSON、未知字段、重复规则名和无效正则都在 child 启动前失败；规则有名称、类型和正反测试，不支持任意代码。
 
 - [x] **M2-08 [P0] 实现会话内 HMAC 脱敏关联前缀**
   - 依赖：M1-00、M2-04。
@@ -353,10 +375,12 @@
 
 - [ ] **M3-09 [P1] 实现 `afr show --open`**
   - 依赖：M3-08、M3-04。
-  - 验收：Windows 路径含空格/Unicode 时安全打开；失败仍打印绝对报告路径。
+  - 当前：parser 和测试明确拒绝 `--open`；它不是当前 v0.1 命令契约。
+  - 验收：先实现 Windows；路径含空格/Unicode 时不经 shell 字符串拼接地打开；失败仍打印绝对报告路径。Linux/macOS 随 R0-05 增加 `xdg-open` / `open` 冒烟。
 
-- [ ] **M3-10 [P1] 实现 `afr report`**
+- [ ] **M3-10 [P2] 实现 `afr report`**
   - 依赖：M2-16、M3-01。
+  - 触发：20 次真实会话中出现需要从冻结 evidence 重建派生报告的重复需求；自动报告已覆盖时不建设。
   - 验收：先 verify evidence，只更新 derived 文件与 derived hashes；events/evidence 条目字节不变。
 
 - [x] **M3-11 [P0] 实现 `afr clean` 精确目标预览**
@@ -372,7 +396,7 @@
   - 验收：按 session 整体选取；不会后台自动运行；选择规则确定、可预览。
 
 - [x] **M3-14 [P0] 生成 Windows x64 单文件**
-  - 依赖：M3 P0 功能。
+  - 依赖：M3-01 至 M3-08、M3-11 至 M3-13；构建任务不依赖自身或后置插件任务。
   - 验收：模板 `go:embed`；干净 Windows VM 只放 `afr.exe` 可运行 version/list，并明确提示 Git/Agent 外部前置。
 
 - [x] **M3-15 [P0] 输出构建与格式版本**
@@ -391,24 +415,33 @@
   - 依赖：M3-16、M3-17。
   - 验收：官方/本地 validator 通过；本地 marketplace 能发现；skill 能启动一次 `afr run -- codex exec ...`。
 
-- [x] **M3-19 [P0] 校验 Claude Code 插件**
+- [x] **M3-19 [P0] 校验 Claude Code 插件包与生命周期**
   - 依赖：M3-16、M3-17。
-  - 验收：`claude --plugin-dir` 可加载；namespaced skill 可调用同一 CLI；额外 Codex manifest 不造成错误。
+  - 验收：strict validator、`claude --plugin-dir`、marketplace install/disable/enable/update/uninstall 和共根 inventory 通过；额外 Codex manifest 不造成错误。
+  - 边界：已登录账户的 namespaced skill 实调用未由本项冒充完成，单列 `REL-02`。
 
 - [x] **M3-20 [P0] 双宿主共根失败时最小分包**
   - 依赖：M3-18、M3-19。
   - 验收：仅当真实 validator/loader 失败才拆 manifest 包；共享 skill 和 CLI 仍为单一来源。
 
-- [x] **M3-21 [P0] v0.1 总验收**
-  - 依赖：所有 v0.1 P0。
-  - 验收：`PROJECT_PLAN.md` 第 12.3 节所有发布门槛自动或人工可重复通过。
+- [x] **M3-21 [P0] v0.1 候选实现验收**
+  - 依赖：M3-01 至 M3-08、M3-11 至 M3-20；P1 的 M3-09 / M3-10 不阻塞候选版。
+  - 验收：自动化安全、压力、基准、Windows 构建和插件 package/lifecycle 检查可重复通过；未完成的人工门槛必须显式留在发布检查表，不得写成正式 Release 已完成。
+
+- [ ] **M3-22 [P0] 补齐 HTML 有界事件时间线**
+  - 依赖：M3-01、M3-04、M3-05、M3-06。
+  - 验收：按 seq 展示时间、类型和最多 512 UTF-8 bytes 的已脱敏摘要；最多 1,000 个事件行，超过时确定性保留前 500 / 后 500，并显示 omitted 数量与 seq 区间；可筛选；truncated、binary、omitted 和 `not_observable` 不被隐藏。恶意 payload 仍只显示文本；10 万事件 fixture 断言事件行不超过 1,000 且首尾与 omission marker 正确。
+
+- [ ] **M3-23 [P0] 补齐 `run` 结束摘要**
+  - 依赖：M3-01、M3-02、M3-03。
+  - 验收：完整收尾时在 stderr 固定输出六行：`Session: <id>`；`Evidence: observed=<排序 capability CSV>; not_observable=<排序 capability CSV>; truncated=<bool>`；`Changed: added=N modified=N deleted=N renamed=N pre_existing=N`；`Risks: total=N highest=<severity>`；`Exit: child=<code> state=<state>`；`Report: <绝对 report.html 路径>`。值与最终报告一致，不使用 L1/L2/L3；child stdout 逐字节不变，child stderr 不丢失；AFR 收尾失败仍保留稳定错误前缀和 session 路径。
 
 ## 6. M4：原生 hook 适配（按真实需求，v0.2）
 
-触发条件：wrapper 模式持续因缺少工具/权限语义而阻碍复核。未触发则整阶段跳过。
+触发条件：`R0-09` 完成且 `DEC-01` 以多个可定位 session 证明 wrapper 持续因缺少工具/权限语义而阻碍复核。未触发则整阶段跳过；不得以单次体验直接启动。
 
 - [ ] **H0-01 [P2] 冻结 plugin-only 状态机**
-  - 依赖：真实使用数据。
+  - 依赖：`DEC-01` 明确选择 hooks / 原生事件方向。
   - 验收：active/idle/completed/incomplete 与 wrapper 状态兼容；Codex 无 SessionEnd 时不伪造 completed。
 
 - [ ] **H0-02 [P2] 实现 `afr hook --host`**
@@ -469,9 +502,9 @@
   - 依赖：F0-03、M2。
   - 验收：清楚区分本地一致性、非数字签名、not_observable、会话共享风险和删除方式。
 
-- [x] **R0-03 [P0] 输出 Windows 校验和**
+- [x] **R0-03 [P0] 生成 Windows 候选制品与校验和**
   - 依赖：M3-14。
-  - 验收：发布包含 `afr.exe`、SHA-256、版本说明；校验在干净 VM 通过。
+  - 验收：本地候选目录包含 `afr.exe`、SHA-256 和版本说明，复算一致；本项不等于已经创建 tag / GitHub Release，公开发布见 `REL-05`。
 
 - [ ] **R0-04 [P1] Windows 代码签名**
   - 依赖：组织证书与发布主体。
@@ -479,7 +512,8 @@
 
 - [ ] **R0-05 [P1] Linux/macOS 同源编译冒烟**
   - 依赖：M0-15、M3-21。
-  - 验收：go test/build 与最小 run/verify 通过；非 Windows 明确标 beta。
+  - 当前：Linux、macOS 交叉编译通过；缺目标 runner 上的测试和行为证据。
+  - 验收：Ubuntu 与 macOS CI 上 go test/build、孙进程终止、最小 run/verify 通过；非 Windows 明确标 beta。
 
 - [x] **R0-06 [P0] Schema 向后读取测试**
   - 依赖：M2-17、M3-15。
@@ -490,12 +524,40 @@
   - 验收：操作不删除 `~/.afr/sessions`；CLI 缺失和版本不兼容有清晰提示。
 
 - [x] **R0-08 [P0] 建立发布检查表**
-  - 依赖：全部 v0.1 P0。
-  - 验收：测试、基准、secret scan、HTML 网络检查、干净 VM、双宿主插件、文档和校验和均有记录。
+  - 依赖：F0-03、F0-14、M3-14 至 M3-20；检查表任务不依赖自身。
+  - 验收：测试、基准、secret scan、HTML 网络检查、干净 VM、双宿主插件、文档和校验和都有槽位；候选记录明确标出未完成的 Claude 实调用与独立 VM，不用 validator/CI 代替人工证据。
+
+- [ ] **REL-01 [P0] 确认公开发行 License**
+  - 依赖：产品负责人明确选择允许公开发行的许可证或其他发行条款。
+  - 验收：仓库根存在完整 License / 发行条款，README、插件 manifest 和 release notes 表述一致；若决定暂不授权，本项保持未完成并阻塞 `REL-05`，不擅自替用户选择。
+
+- [ ] **REL-02 [P0] 已登录 Claude Code 真实 skill 冒烟**
+  - 依赖：M3-17、M3-19、M3-23；可用的已登录 Claude Code 账户。
+  - 验收：从实际插件入口调用 `/afr:afr`，确认命中同一 `afr` CLI，生成新 session、六项摘要完整、`afr verify` 通过；记录 Claude / AFR 版本、命令、session ID 与结果。
+
+- [ ] **REL-03 [P0] 独立干净 Windows VM 候选制品复验**
+  - 依赖：M3-22、M3-23、R0-03。
+  - 验收：不使用开发机工作树，在干净 Windows x64 VM 复制候选 exe/SHA 后复算校验；`version`、`list --json` 可运行，缺 Git / Agent 时错误明确；记录 VM、时间、命令和结果。
+
+- [ ] **REL-04 [P0] 冻结最终 v0.1.0 候选 commit**
+  - 依赖：M3-22、M3-23、REL-02、REL-03、R0-08。
+  - 验收：从最终 `main` commit 执行 `release-check.ps1 -Full`；CI 全绿；二进制版本、commit、release notes 和 SHA-256 对应同一 commit；工作树无未说明发布改动。
+
+- [ ] **REL-05 [P0] 创建 `v0.1.0` tag 与公开 GitHub Release**
+  - 依赖：REL-01、REL-04。
+  - 验收：最终 release commit 先把 README 状态与下载链接更新为 v0.1.0 released，再创建指向该 commit 的 annotated tag；公开 Release 上传 Windows exe、`SHA256SUMS` 和版本说明；页面明确 Windows x64、未签名、能力边界及 Git / Agent 外部前置。
+
+- [ ] **REL-06 [P0] 公开附件回下载与安装路径复验**
+  - 依赖：REL-05。
+  - 验收：从 GitHub Release 重新下载附件，复算 SHA-256，在独立目录运行 `version`、`list --json`；按 tag 内的公开文档完成 Codex / Claude 插件发现或安装，不再修改已经发布的 tag 内容。
 
 - [ ] **R0-09 [P1] 20 次真实会话评审**
-  - 依赖：v0.1 发布。
-  - 验收：记录发现的问题、复盘耗时、启动/磁盘开销和继续使用意愿；不加遥测服务。
+  - 依赖：REL-06。
+  - 验收：20 条均记录 AFR version/commit、host/version、session ID、任务类型、运行时长、目录大小、真实发现、误报、证据缺口、复盘耗时和继续使用意愿；不加遥测服务，不上传原始证据。
+
+- [ ] **DEC-01 [P1] 执行 20 次会话数据门**
+  - 依赖：R0-09。
+  - 验收：形成 ADR，按多个可定位 session 的重复证据只选择一个方向（例如 hooks、性能索引或团队汇总），或明确保持 wrapper；写清收益、成本、非目标和下一检查点。
 
 ## 8. 暂缓池（不是当前承诺）
 
@@ -530,9 +592,14 @@ F0 契约
   -> M0 单进程可靠记录
   -> M1 工作区 before/after
   -> M2 写盘前脱敏 + verify
-  -> M3 报告/清理/Windows 包
+  -> M3 候选报告/清理/Windows 包
   -> 薄 Codex + Claude Code 插件
-  -> v0.1 发布
+  -> M3-22 有界时间线 + M3-23 运行摘要
+  -> REL-01..REL-06 正式 v0.1.0 发布
+      +-> [并行 A] P1 可用性 / Linux + macOS beta
+      +-> [并行 B] R0-09 二十次真实会话（逐条记录 version/commit）
+                    -> DEC-01 单方向数据门
+                        -> [仅证据触发] M4 hooks / 其他一个扩展方向
 ```
 
-M1 结束时执行两周停止门槛。异常证据、会话 delta、写盘前脱敏任一不可靠，就暂停报告美化、插件 hooks 和所有平台化工作。
+M1 的两周停止门槛已经通过。现在的新停止门槛是 `REL-06` 和 `DEC-01`：正式发布真值未闭环前不宣称 released；20 次会话没有重复证据前不启动 hooks、Dify、索引、签名或团队后台。

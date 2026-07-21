@@ -46,9 +46,10 @@ flowchart LR
   Workspace --> Redact
   Redact --> Events["events.jsonl hash chain"]
   Redact --> Artifacts["Snapshots + patch"]
+  Redact --> Reports["Markdown / JSON / offline HTML"]
   Events --> Manifest["manifest.json"]
   Artifacts --> Manifest
-  Manifest --> Reports["Markdown / JSON / offline HTML"]
+  Reports --> Manifest
   Manifest --> Verify["afr verify"]
 ```
 
@@ -143,4 +144,4 @@ docs/         plan, TODO, architecture, security, quick start, release checklist
 
 ## Status
 
-The Windows x64 v0.1 P0 acceptance checklist is complete. Linux and macOS builds, native host hooks, digital signatures, remote witnessing, indexing, and team services remain explicitly outside the v0.1 boundary.
+The Windows x64 v0.1 core candidate is implemented and merged, but it is not a formal release yet. The remaining release gates are the bounded HTML event timeline, complete run summary, License decision, authenticated Claude smoke, clean-VM verification, public tag/Release, and download-back verification. Native hooks and broader platform services remain data-gated.

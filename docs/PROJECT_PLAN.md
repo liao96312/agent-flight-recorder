@@ -1,9 +1,9 @@
 # Agent Flight Recorder 项目规划
 
-> 状态：规划基线 v0.1
-> 日期：2026-07-20
-> 依据：[AI智能体黑匣子技术方案.docx](../AI智能体黑匣子技术方案.docx) 及 2026-07-20 用户补充要求
-> 目标：先交付可信的本地 CLI，再用薄插件接入 Codex 与 Claude Code
+> 状态：v0.1 候选实现已合并；正式公开发布尚未完成
+> 日期：2026-07-21
+> 依据：[AI智能体黑匣子技术方案.docx](../AI智能体黑匣子技术方案.docx) 及截至 2026-07-21 的用户补充要求
+> 目标：先闭环发布真值和人工验收，再进入公开试用与数据驱动迭代
 
 ## 1. 需求记录
 
@@ -18,6 +18,10 @@
 | REQ-005 | 用户补充 | 最终产品形态优先 CLI，或 Codex / Claude Code 插件 | 采用“一个 CLI 内核 + 一个双宿主薄插件包” | 已采纳 |
 | REQ-006 | 用户补充 | 仔细阅读技术文档并记录后续提出的内容 | 本文件维护需求与决策；源 DOCX 不直接修改 | 已采纳 |
 | REQ-007 | 用户补充 | 给出详细规划、TODO List 和 PlantUML | 分别落在本文件、[TODO.md](./TODO.md)、[architecture.puml](./architecture.puml) | 已完成规划 |
+| REQ-008 | 用户补充 | 建立 GitHub 仓库并先公开上传雏形 | 已建立公开仓库 `liao96312/agent-flight-recorder`，默认分支为 `main` | 已完成 |
+| REQ-009 | 用户补充 | 按 TODO 持续推进直至完成 | v0.1 候选实现已完成；未完成项继续由本文件的数据门和 TODO 验收约束 | 持续执行 |
+| REQ-010 | 用户补充 | GitHub 项目主页与账号内其他项目保持同类风格 | 已完成中英文 README、徽章、架构图、快速开始与安全边界整理 | 已完成 |
+| REQ-011 | 用户补充 | 再次对照技术文档，更新下一步 TODO 和 plan | 重新核对源方案、当前代码、发布记录与架构图，冻结下述发布收口和公开试用路线 | 已完成规划 |
 
 ### 1.1 默认假设
 
@@ -27,16 +31,16 @@
 - CLI 是证据链唯一实现；插件不得复制存储、脱敏、哈希、规则或报告代码。
 - 所有默认值都可在真实测试后调整，但不提前建设数据库、守护进程、云后台或模型流程。
 
-### 1.2 尚待产品负责人确认但不阻塞开工
+### 1.2 v0.1 候选版后的决策现状
 
-| 决策 | 当前默认 | 最迟确认点 |
+| 决策 | 已确认状态 | 下一检查点 |
 |---|---|---|
-| 开源许可证 | 暂不写许可证 | 首次对外发布前 |
-| 产品正式名称 | Agent Flight Recorder / `afr` | M0 结束前 |
-| 首个验收 Agent | `codex exec` | Phase 0 |
-| Claude Code 验收命令 | 使用其稳定非交互入口，以本机版本验证 | M3 |
-| 会话默认保留期 | 30 天，但不后台自动删除 | M3 |
-| 是否将插件 hooks 纳入 v0.1 | 默认否，只交付薄 skill | M2 复盘 |
+| 开源许可证 | 尚未选择；公开可见不等于获得开源许可 | `REL-01`，正式 tag / GitHub Release 前阻塞 |
+| 产品正式名称 | 已固定为 Agent Flight Recorder / `afr` | 仅在品牌冲突时重开 |
+| 首个验收 Agent | `codex exec` 已完成真实包装与 verify 冒烟 | 每次正式发布复验 |
+| Claude Code 验收 | strict validator、加载和生命周期已通过；已登录账户的 `/afr:afr` 实调用仍缺 | `REL-02` |
+| 会话保留 | 不后台删除；文档可建议 30 天，实际删除必须显式运行 `clean` 并给出条件 | 20 次真实会话后复盘 |
+| 插件 hooks | 明确不进入 v0.1；只有 20 次会话评审证明 wrapper 的语义缺口反复阻碍复核才启动 | `DEC-01` |
 
 ## 2. 审读结论
 
@@ -75,6 +79,24 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 
 报告必须同时列出 `observed`、`not_observable` 和 `truncated`，不能用风险为零暗示全面安全。
 
+### 2.3 2026-07-21 源方案—实现—发布真值复核
+
+本轮重新逐段核对源 DOCX、`main` 分支代码、发布检查表和 GitHub 实际状态。结论是：证据内核和 Windows 候选制品已经形成，但“候选实现完成”不能写成“正式发布完成”。下表是下一阶段的基线，TODO 不得绕过这些差异。
+
+| 原方案或既有契约 | 当前实现 / 外部事实 | 处理 |
+|---|---|---|
+| 公开可安装的首版 | 仓库已公开，但没有 License、tag 或 GitHub Release | `REL-01` 至 `REL-06` 完成前只称 v0.1 候选版 |
+| 运行结束输出 Session、Evidence、Changed、Risks、Exit、Report | 当前只输出 session ID 和目录 | `M3-23 [P0]` 在正式发布前补齐，保持 child stdout 不受污染 |
+| HTML 提供可筛选的完整时间线 | 当前 HTML 有安全外壳、输出预览、事件计数、风险和文件列表，但没有逐事件时间线 | `M3-22 [P0]` 增加有界、已脱敏的 seq 时间线 |
+| 一条命令定位并打开报告 | `show` 可定位报告，但解析器明确拒绝 `--open` | `M3-09 [P1]`，不阻塞 v0.1.0 发布 |
+| 非 Git 扫描支持有限 `.afrignore` | 当前只固定跳过 `.git`，未加载 `.afrignore` | `M1-11 [P1]`，先冻结有限 glob，不冒充完整 gitignore |
+| workspace `.afr.json` 可添加 RE2 脱敏规则 | 当前只有内置 detector，没有配置加载 | `M2-07 [P1]`，无效规则必须在 child 启动前失败 |
+| Unix 终止整个进程组并提供 Linux/macOS 版本 | `Setpgid` 和负 PID 信号已经实现，交叉编译通过；缺孙进程测试和两平台 CI 的 run/verify | `M0-15` 与 `R0-05` 作为一组验收 |
+| `afr report` 可重建派生报告 | 当前只在 `run` 收尾自动生成报告 | `M3-10` 降为 P2；20 次评审证明需要重建时再做 |
+| replay、原生 hooks、Dify / 团队分析 | 均未实现 | 保持暂缓；只能由 `DEC-01` 的真实数据启动，不因原方案列出就提前建设 |
+
+本轮同时删除两个过期承诺：v0.1 当前命令面不含 `show --open`，也没有未进入实现和 TODO 的 `--summary-json`。原方案的“证据等级”继续按能力矩阵表达；`verify.json`、自动 replay、OS 级文件/网络观测仍不伪装为已交付。
+
 ## 3. 推荐产品形态
 
 ### 3.1 结论
@@ -105,7 +127,7 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 - 数字签名、硬件密钥、远端时间戳见证。
 - MCP 服务；薄 skill 直接调用 CLI 已覆盖首版需求。
 
-## 4. v0.1 产品范围
+## 4. v0.1 候选实现范围
 
 ### 4.1 必须交付
 
@@ -122,14 +144,15 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 - `session.json`、`events.jsonl`、`manifest.json`
 - `agent-flight.md`、`agent-risk.json`、`report.html`
 - incomplete 会话的只读复核
-- 一个共享薄插件包，至少完成 Codex 与 Claude Code 的本地加载冒烟
+- 一个共享薄插件包；Codex 真实包装冒烟和 Claude Code 本地 validator / loader 已完成，Claude 已登录实调用进入正式发布门槛
 
-### 4.2 可在 v0.1 中做，但不能阻塞发布
+### 4.2 候选版后续增强，不阻塞 v0.1.0 发布
 
-- `afr report` 显式重建派生报告。
 - `afr show --open` 跨平台打开浏览器。
+- 有限 `.afrignore` 与 workspace `.afr.json` 自定义 RE2 脱敏规则。
 - Linux/macOS 同源编译和最小冒烟。
 - 插件内提供“查看最近报告”和“验证最近会话”两个额外 skill。
+- `afr report` 只有真实评审需要重建派生物时才立项，优先级为 P2。
 
 ### 4.3 推迟
 
@@ -297,13 +320,13 @@ hash = SHA256("AFR-EVENT-v1\n" || prev_hash_bytes || "\n" || exact_body_bytes)
 ```text
 afr run [--workspace PATH] -- COMMAND [ARG...]
 afr list [--limit N] [--json]
-afr show [--json] [--open] [SESSION|latest]
+afr show [--json] [SESSION|latest]
 afr verify [--json] [SESSION|latest]
 afr clean (--older-than DURATION | --max-bytes SIZE) [--yes]
 afr version
 ```
 
-`report` 和 `replay` 不进入首个必需命令面。自动报告已经覆盖日常路径；有证据证明需要重建时再加入 `report`。
+`show --open` 是 P1 候选而不是当前契约。`report` 和 `replay` 不进入首个必需命令面：自动报告已经覆盖日常路径；有证据证明需要重建时再加入 `report`。
 
 冻结的 v0.1 解析契约如下；`[]` 表示可选，命令名和 flag 区分大小写：
 
@@ -311,7 +334,7 @@ afr version
 | --- | --- | --- |
 | `run [--workspace PATH] -- COMMAND [ARG...]` | workspace 为当前目录；第一个独立 `--` 是 AFR 与 child argv 的唯一边界，之后的空格、引号、Unicode 和前导短横线逐项原样传递 | 缺少 `--`、空 command、未知 AFR flag |
 | `list [--limit N] [--json]` | limit=20，按 session ID 倒序；N 必须大于 0 | 多余位置参数、非法 N |
-| `show [--json] [--open] [SESSION\|latest]` | selector 默认为 `latest`；完整 ID 或唯一前缀；`--open` 只打开派生 HTML | selector 歧义、额外参数 |
+| `show [--json] [SESSION\|latest]` | selector 默认为 `latest`；完整 ID 或唯一前缀；非 JSON 模式读取 Markdown 摘要 | selector 歧义、额外参数、当前传入 `--open` |
 | `verify [--json] [SESSION\|latest]` | selector 默认为 `latest`；只读，不修复证据；`--json` 也兼容放在 selector 后 | 多个 selector、未知 flag |
 | `clean (--older-than DURATION \| --max-bytes SIZE) [--yes]` | 恰好一个选择条件；默认只预览；非 TTY 删除必须显式 `--yes` | 无条件、双条件、非法 duration/size |
 | `version` | 无参数，写 stdout | 任意额外参数 |
@@ -321,8 +344,8 @@ afr version
 ### 7.2 流与退出码
 
 - child stdout 原样实时写到 AFR stdout；child stderr 原样实时写到 AFR stderr。
-- AFR 的会话摘要默认写 stderr，避免污染 child 的机器可读 stdout。
-- `--summary-json <path>` 可显式保存机器摘要；不在 stdout 偷加 JSON。
+- AFR 的会话摘要写 stderr，避免污染 child 的机器可读 stdout；当前候选版只输出 session ID / 目录，`M3-23` 将在正式发布前补齐固定的人类摘要字段。
+- v0.1 不提供 `--summary-json`；如果真实脚本消费需求出现，先冻结 schema 和输出路径再新增。
 - `run` 在记录器完整收尾时透传 child exit code。
 - 记录器在启动 child 前失败时返回保留的 AFR 错误码，并且打印稳定错误类别。
 - 记录器在 child 已运行后自身收尾失败时返回 AFR 错误码，同时保留 child exit code 到 `session.json`。
@@ -332,7 +355,7 @@ afr version
 
 | 场景 | 退出码 | stdout | stderr 前缀/内容 |
 | --- | ---: | --- | --- |
-| `run` 完整收尾 | child 原退出码（0–255） | child stdout 原样 | child stderr 原样，末尾另写 `AFR session ...` 摘要 |
+| `run` 完整收尾 | child 原退出码（0–255） | child stdout 原样 | child stderr 原样；正式发布目标在末尾写 Session/Evidence/Changed/Risks/Exit/Report 摘要（`M3-23`） |
 | child 启动前或 AFR 收尾失败 | 70 | 已产生的 child stdout（若有） | `AFR_RUNTIME:`；已分配 session 时追加其目录 |
 | CLI 用法错误 | 64 | 空 | `AFR_USAGE:` |
 | `verify` 通过 | 0 | 文本或 `--json` 结果 | 空 |
@@ -367,7 +390,7 @@ child 自身返回 2、64 或 70 时仍属于“完整收尾”，脚本通过 s
 
 - 只扫描工作区真实路径之内，不跟随 symlink/junction/reparse point。
 - 记录相对路径、类型、大小、mtime 和会话级 HMAC 内容指纹；默认不输出可被字典枚举的裸内容哈希。
-- `.afrignore` v0.1 使用文档化的有限 glob，不声称完全兼容 `.gitignore`。
+- 当前候选版固定跳过 `.git`，尚未读取 `.afrignore`；`M1-11` 将增加文档化的有限 glob，且不声称完全兼容 `.gitignore`。
 - 配置时间、文件数和读取字节预算；超限后输出 `partial` 与遗漏原因。
 - 权限拒绝、循环链接、路径消失都生成可见事件。
 
@@ -395,7 +418,7 @@ L1 的 before/after 只能证明工作区内变化。只有命令参数或原生
 - 二进制或未知编码：只保存字节数、会话级 HMAC 指纹、MIME/判定原因。
 - 单条逻辑记录超过安全上限：不保存正文，只保存 omitted marker。
 - 多行私钥等跨行模式：在有界记录缓冲中完整检测。
-- 自定义正则使用 Go RE2，加载时编译；无效规则使配置失败，不在运行中忽略。
+- 当前候选版只使用内置 detector；`M2-07` 的自定义正则使用 Go RE2，加载时编译，无效规则必须在启动 child 前使配置失败。
 - redaction 占位符使用会话内 HMAC 关联前缀，HMAC key 不写盘。
 - 未持久化的原始流或 Diff 只保存会话级 HMAC 指纹，不保存可被低熵字典枚举的裸 SHA-256；manifest 的 SHA-256 只校验已经脱敏并实际存储的制品。
 
@@ -422,7 +445,7 @@ v0.1 的 `workspace.bulk_change` 规则版本为 1，本次 session delta 达到
 
 - `agent-flight.md`：短摘要，适合评审和工单。
 - `agent-risk.json`：稳定、版本化的机器输出。
-- `report.html`：单文件时间线，可按事件、风险、文件筛选。
+- `report.html`：当前候选版提供事件计数、输出预览、风险和文件筛选；`M3-22` 在正式发布前补齐按 seq 排序的有界事件时间线。
 
 ### 10.2 安全和容量
 
@@ -430,6 +453,7 @@ v0.1 的 `workspace.bulk_change` 规则版本为 1，本次 session delta 达到
 - CSP 禁止网络、对象、frame；内联 CSS/JS 使用构建时哈希。
 - 不加载外部字体、图片、脚本或分析服务。
 - HTML 不内嵌全部 200 MB 输出；只嵌入受限预览与统计，详细事件从同一文件中的受限数据块按需展示。
+- 事件时间线最多 1,000 行、每行摘要最多 512 UTF-8 bytes；超过时保留前 500 / 后 500，并显示 omitted 数量与 seq 区间，不能静默制造“完整”假象。
 - 注入测试覆盖 HTML、属性、脚本、CSS、JSON 和 Unicode 边界。
 
 ## 11. 插件规划
@@ -453,6 +477,8 @@ skill 只做四件事：
 4. 运行 `show/verify` 并给出报告路径。
 
 两种宿主都要单独跑本地加载和调用冒烟；若任一宿主不能容忍同一根目录中的另一个 manifest，再拆成两个发布包，不提前维护两套业务代码。
+
+候选版实测状态：Codex marketplace 发现、安装、真实 `afr run -- codex exec ...` 和 session verify 已通过；Claude Code strict validator、`--plugin-dir` 与插件生命周期已通过，但本机未登录，因此 `/afr:afr` 调用同一 `afr` 的端到端证据归入 `REL-02`，未通过前不能写成双宿主正式发布完成。
 
 ### 11.2 v0.2：hook 原生事件
 
@@ -518,20 +544,27 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 - `clean` 在伪造目录、symlink/junction、活跃会话和非 TTY 下不越界。
 - HTML 在浏览器中无外部请求，恶意内容不执行。
 - Windows 干净 VM 只放 `afr.exe` 后可运行；外部 Git/Agent 前置有明确错误提示。
+- 已登录 Claude Code 账户实际调用 `/afr:afr`，确认使用同一 `afr`、生成 session 且 `verify` 通过；validator 不能替代该人工门槛。
+- 发布前明确 License，最终 `main` commit 的测试、CI、版本号和 SHA-256 一致；创建不可变 `v0.1.0` tag 与公开 GitHub Release。
+- 从公开 Release 重新下载附件复算校验和，并在独立目录完成 `version`、`list --json` 与插件安装文档冒烟。
 
 ## 13. 里程碑
 
-估算按 1 名全职开发者；先通过门槛再进入下一阶段。
+估算按 1 名全职开发者；历史阶段与下一阶段分开标记，完成代码不自动等于完成公开发布。
 
-| 阶段 | 周期 | 范围 | 退出门槛 |
-|---|---:|---|---|
-| Phase 0 契约冻结 | 2 天 | 威胁模型、能力矩阵、事件/manifest、CLI、退出码、fixture | 关键 JSON 示例和黄金哈希向量评审通过 |
-| M0 记录闭环 | 1 周 | run、会话、fake-agent、输出泵、退出/取消、incomplete | 成功、失败、子进程被杀三条路径可复核 |
-| M1 工作区证据 | 1 周 | Git before/after/delta、非 Git 扫描、容量预算 | fixture 结果与人工 Git 检查一致 |
-| M2 安全证据 | 1 周 | 统一脱敏、规则、哈希链、manifest、verify | secret 与篡改矩阵全部通过 |
-| M3 报告与发布 | 1 周 | Markdown/JSON/HTML、list/show/clean、Windows 包、薄插件 | 干净 VM 和两宿主插件冒烟通过 |
-| M4 原生 hooks | 按需，约 1–2 周 | `afr hook`、并发锁、Codex/Claude 事件映射 | L2 事件能与 L1 会话关联且不破链 |
-| M5 团队增强 | 数据驱动 | 签名见证、索引、Dify/团队分析 | 有真实使用数据和明确合规边界 |
+| 阶段 | 当前状态 | 后续投入 | 范围 | 退出门槛 |
+|---|---|---:|---|---|
+| Phase 0 契约冻结 | 已完成 | 0 | 威胁模型、能力矩阵、事件/manifest、CLI、退出码、fixture | 关键 JSON 示例和黄金哈希向量评审通过 |
+| M0 记录闭环 | Windows 已完成；Unix 待验收 | P1 约 1 天 | run、会话、输出泵、退出/取消、incomplete、进程树 | Windows 路径通过；Unix 由 `M0-15` 收口 |
+| M1 工作区证据 | 核心已完成 | P1 约 1 天 | Git before/after/delta、非 Git 扫描、容量预算 | `.afrignore` 由 `M1-11` 补齐 |
+| M2 安全证据 | 核心已完成 | P1 约 1 天 | 统一脱敏、规则、哈希链、manifest、verify | workspace 自定义 RE2 由 `M2-07` 补齐 |
+| M3 候选版 | 候选代码与制品已合并 | P0 约 1–2 天 | 报告、CLI、Windows 包、薄插件 | `M3-22`、`M3-23` 通过，且不回退既有安全门槛 |
+| R0 正式发布 | 未完成 | P0 约 1 天 + 两项人工/外部门槛 | License、Claude 实调用、干净 VM、tag、Release、回下载 | `REL-01` 至 `REL-06` 全部有证据 |
+| P1 可用性与平台 | 未开始 | 约 3–4 天 | `show --open`、ignore、自定义 RE2、Linux/macOS beta | 每项独立测试与文档通过，不捆绑大版本 |
+| OBS 公开试用 | 未开始 | 事件驱动，直到 20 次 | 真实 Codex/Claude 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
+| DEC 数据门 | 未开始 | 半天 | 对证据缺口、性能、复核价值做决策 | `DEC-01` 明确“只做一个方向”或“保持现状” |
+| M4 原生 hooks | 条件性暂缓 | 触发后约 1–2 周 | `afr hook`、并发锁、宿主事件映射 | 只有 `DEC-01` 证明 wrapper 语义缺口反复阻碍复核才启动 |
+| M5 团队增强 | 条件性暂缓 | 数据驱动 | 签名见证、索引、Dify/团队分析 | 有真实使用数据、明确责任人和合规边界 |
 
 ### 13.1 两周停止门槛
 
@@ -543,14 +576,30 @@ M1 结束时必须能稳定回答：
 
 任一答案为否，就暂停插件、HTML 美化和平台化，只修核心证据链。
 
+### 13.2 下一步执行计划
+
+| 顺序 | TODO | 可并行性 | 完成定义 |
+|---:|---|---|---|
+| 1 | `M3-22` HTML 有界事件时间线；`M3-23` 完整运行摘要 | 两项可并行；不依赖外部账号 | 时间线最多 1,000 行（前后各 500、每行摘要 512 UTF-8 bytes、显式 omission）；摘要使用 capability vector 与固定六行格式；child stdout 不污染 |
+| 2 | `REL-01` License 决策 | 可与顺序 1 并行；需要产品负责人明确选择 | 仓库根 License、README / 发布说明表述一致；未选择则不得创建 Release |
+| 3 | `REL-02` 已登录 Claude `/afr:afr`；`REL-03` 独立干净 Windows VM | 两项可并行；均保留机器、版本、命令、session / checksum 证据 | Claude 调用同一 CLI 并 verify；VM 从候选 artifact 完成 version/list 和错误提示检查 |
+| 4 | `REL-04` 最终候选检查 | 依赖顺序 1 和 3 | 从最终 `main` commit 运行完整 release-check，CI、版本、SHA-256 和 release notes 指向同一 commit |
+| 5 | `REL-05` tag + GitHub Release；`REL-06` 回下载 / 公共安装复验 | 严格串行 | 公开附件可下载、校验一致、快速开始能从零复现 |
+| 6A | `M3-09`、`M1-11`、`M2-07`、`M0-15 + R0-05` | `REL-06` 后逐项交付；与 6B 并行，每项可单独发布补丁版 | 分别通过浏览器打开、ignore、配置失败和 Unix 进程组/CI 验收 |
+| 6B | `R0-09` 20 次真实会话 | `REL-06` 后立即开始，与 6A 并行；不建设遥测 | 每次记录 version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿，可区分期间的补丁版 |
+| 7 | `DEC-01` 数据门 | 依赖完整 20 次记录，不依赖 6A 全部完成 | 形成 ADR：只启动一个证据最强的方向，或明确保持 wrapper；不得一次启动 hooks、Dify、索引和签名 |
+
+License 或宿主登录等待期间不暂停本地工作：继续完成不依赖外部权限的 P0 项和自动化验证。但不得以“外部阻塞”为由跳过门槛，也不得在门槛未通过时提前打正式 tag。
+
 ## 14. 发布与运维
 
 - 使用 Go reproducible build 信息，`afr version` 输出版本、commit、构建时间、format version。
-- v0.1 发布 Windows x64 校验和；代码签名作为企业增强，不伪装已有签名。
-- 配置优先级固定为 CLI flags > workspace `.afr.json` > defaults；不先增加用户/组织多层配置。
+- Windows x64 候选 exe 与校验和已经生成；只有 `REL-01` 至 `REL-06` 通过后才能称为 v0.1.0 正式公开发布。代码签名作为企业增强，不伪装已有签名。
+- 目标配置优先级固定为 CLI flags > workspace `.afr.json` > defaults；当前 `.afr.json` 尚未实现，`M2-07` 完成前不得在安装文档中声称可配置。
 - 会话目录默认位于用户主目录 `.afr/sessions`，继承/设置仅当前用户访问权限。
 - 没有后台自动清理；用户显式运行 `clean`。
 - schema 或哈希格式升级必须保留旧版本只读 verify，不能静默重写旧证据。
+- GitHub Release 的附件、tag、release notes、CI 和 `afr version` 必须能追溯到同一 commit；发布后回下载校验是门槛，不是可选清理项。
 
 ## 15. 成功指标
 
@@ -560,12 +609,16 @@ M1 结束时必须能稳定回答：
 2. 故障复盘时间是否明显下降？
 3. 启动、磁盘和认知开销是否让开发者愿意持续使用？
 
-建议 20 次真实会话后评审，而不是先建设遥测。满足以下任一条件才启动对应扩展：
+20 次真实会话使用本地评审表，不建设遥测服务。每条至少记录：AFR 版本与 commit、宿主/版本、session ID、任务类型、运行时长、会话目录大小、真实发现、误报、缺失证据、人工复核耗时、是否愿意再次使用。敏感内容只保留在本地，不为统计上传原始事件。
+
+完成 20 条后执行 `DEC-01`。一个方向必须有多个可定位 session 的重复证据和明确的用户价值才能启动；单次轶事或“以后可能需要”不够。满足以下条件才启动对应扩展：
 
 - 会话扫描实际成为瓶颈，再加索引。
 - wrapper 看不到的工具/权限事件持续阻碍复核，再做 hooks/原生适配。
 - 多人确实需要跨会话汇总，再评估 Dify/团队服务。
 - 高保证客户明确要求对抗本机管理员，再做签名与远端见证。
+
+如果没有一个方向满足门槛，正确决策是保持 CLI + 薄插件、修复具体缺陷并继续观察，而不是为了版本号扩张范围。
 
 ## 16. 风险台账
 
