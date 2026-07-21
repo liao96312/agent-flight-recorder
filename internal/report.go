@@ -1,7 +1,13 @@
 package afr
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"os"
 	"sort"
 	"strings"
 )
@@ -9,10 +15,29 @@ import (
 var derivedReportPaths = []string{"agent-flight.md", "agent-risk.json", "report.html"}
 
 const reportPreviewLimit = 4 * 1024
+const reportTimelineEdgeLimit = 500
+const reportTimelineSummaryLimit = 512
 
 type ReportEventCount struct {
 	Type  string `json:"type"`
 	Count uint64 `json:"count"`
+}
+
+type ReportTimelineItem struct {
+	Seq              uint64 `json:"seq,omitempty"`
+	Timestamp        string `json:"timestamp,omitempty"`
+	Type             string `json:"type,omitempty"`
+	Source           string `json:"source,omitempty"`
+	Summary          string `json:"summary,omitempty"`
+	SummaryTruncated bool   `json:"summary_truncated,omitempty"`
+	OmittedCount     uint64 `json:"omitted_count,omitempty"`
+	OmittedFrom      uint64 `json:"omitted_from,omitempty"`
+	OmittedTo        uint64 `json:"omitted_to,omitempty"`
+}
+
+type ReportTimeline struct {
+	TotalEvents uint64               `json:"total_events"`
+	Items       []ReportTimelineItem `json:"items"`
 }
 
 type ReportStream struct {
@@ -29,6 +54,7 @@ type ReportView struct {
 	FormatVersion int                `json:"format_version"`
 	Session       SessionMetadata    `json:"session"`
 	Events        []ReportEventCount `json:"events"`
+	Timeline      ReportTimeline     `json:"timeline"`
 	Output        []ReportStream     `json:"output"`
 	Changes       WorkspaceDelta     `json:"changes"`
 	Risks         []RiskFinding      `json:"risks"`
@@ -106,6 +132,129 @@ func truncateUTF8(value string, limit int) string {
 		limit--
 	}
 	return value[:limit]
+}
+
+func readReportTimeline(sessionRoot string) (ReportTimeline, error) {
+	path, err := safeJoin(sessionRoot, "events.jsonl")
+	if err != nil {
+		return ReportTimeline{}, err
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return ReportTimeline{}, fmt.Errorf("open report timeline: %w", err)
+	}
+	defer file.Close()
+
+	first := make([]ReportTimelineItem, 0, reportTimelineEdgeLimit)
+	last := make([]ReportTimelineItem, reportTimelineEdgeLimit)
+	lastCount, nextLast := 0, 0
+	total := uint64(0)
+	reader := bufio.NewReaderSize(file, 64*1024)
+	for {
+		line, readErr, tooLarge := readBoundedEventLine(reader)
+		if tooLarge {
+			return ReportTimeline{}, errors.New("event exceeds report timeline line limit")
+		}
+		if readErr == io.EOF && len(line) > 0 {
+			return ReportTimeline{}, errors.New("events file has a torn final record")
+		}
+		if len(line) > 0 {
+			var envelope eventEnvelope
+			if err := json.Unmarshal(bytes.TrimSuffix(line, []byte{'\n'}), &envelope); err != nil {
+				return ReportTimeline{}, fmt.Errorf("decode report timeline envelope: %w", err)
+			}
+			var body EventBody
+			if err := json.Unmarshal(envelope.Body, &body); err != nil {
+				return ReportTimeline{}, fmt.Errorf("decode report timeline event: %w", err)
+			}
+			summary := string(body.Payload)
+			item := ReportTimelineItem{
+				Seq:              body.Seq,
+				Timestamp:        body.Timestamp,
+				Type:             body.Type,
+				Source:           body.Source,
+				Summary:          truncateUTF8(summary, reportTimelineSummaryLimit),
+				SummaryTruncated: len(summary) > reportTimelineSummaryLimit,
+			}
+			total++
+			if len(first) < reportTimelineEdgeLimit {
+				first = append(first, item)
+			} else if lastCount < reportTimelineEdgeLimit {
+				last[lastCount] = item
+				lastCount++
+			} else {
+				last[nextLast] = item
+				nextLast = (nextLast + 1) % reportTimelineEdgeLimit
+			}
+		}
+		if readErr != nil {
+			if readErr == io.EOF {
+				break
+			}
+			return ReportTimeline{}, fmt.Errorf("read report timeline: %w", readErr)
+		}
+	}
+
+	orderedLast := make([]ReportTimelineItem, 0, lastCount)
+	for index := range lastCount {
+		orderedLast = append(orderedLast, last[(nextLast+index)%reportTimelineEdgeLimit])
+	}
+	items := append([]ReportTimelineItem{}, first...)
+	omitted := total - uint64(len(first)+lastCount)
+	if omitted > 0 {
+		items = append(items, ReportTimelineItem{
+			OmittedCount: omitted,
+			OmittedFrom:  first[len(first)-1].Seq + 1,
+			OmittedTo:    orderedLast[0].Seq - 1,
+		})
+	}
+	items = append(items, orderedLast...)
+	return ReportTimeline{TotalEvents: total, Items: items}, nil
+}
+
+func FormatRunSummary(view ReportView, reportPath string) string {
+	observed, notObservable := []string{}, []string{}
+	for _, capability := range view.Session.Capabilities {
+		name, state, ok := strings.Cut(capability, "=")
+		if !ok {
+			continue
+		}
+		switch state {
+		case "observed":
+			observed = append(observed, name)
+		case "not_observable":
+			notObservable = append(notObservable, name)
+		}
+	}
+	sort.Strings(observed)
+	sort.Strings(notObservable)
+	truncated := view.Changes.Partial || view.Changes.Patch.Truncated
+	for _, stream := range view.Output {
+		truncated = truncated || stream.Truncated
+	}
+	join := func(values []string) string {
+		if len(values) == 0 {
+			return "none"
+		}
+		return strings.Join(values, ",")
+	}
+	return fmt.Sprintf(
+		"Session: %s\nEvidence: observed=%s; not_observable=%s; truncated=%t\nChanged: added=%d modified=%d deleted=%d renamed=%d pre_existing=%d\nRisks: total=%d highest=%s\nExit: child=%s state=%s\nReport: %s\n",
+		view.Session.ID,
+		join(observed),
+		join(notObservable),
+		truncated,
+		len(view.Changes.Added),
+		len(view.Changes.Modified),
+		len(view.Changes.Deleted),
+		len(view.Changes.Renamed),
+		len(view.Changes.PreExisting),
+		len(view.Risks),
+		view.HighestRisk,
+		exitCodeText(view.Session.ChildExitCode),
+		view.Session.State,
+		reportPath,
+	)
 }
 
 func WriteReportArtifacts(sessionRoot string, view ReportView, redactor *Redactor) error {

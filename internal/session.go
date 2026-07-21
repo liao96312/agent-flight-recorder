@@ -134,7 +134,11 @@ func safeJoin(root, relative string) (string, error) {
 	if relative == "" || !filepath.IsLocal(relative) {
 		return "", errors.New("path must be a non-empty relative path")
 	}
-	for _, part := range strings.Split(strings.ReplaceAll(relative, "\\", "/"), "/") {
+	portable := strings.ReplaceAll(relative, "\\", "/")
+	if strings.HasPrefix(portable, "/") || len(portable) >= 2 && portable[1] == ':' && (portable[0] >= 'A' && portable[0] <= 'Z' || portable[0] >= 'a' && portable[0] <= 'z') {
+		return "", errors.New("path must be a non-empty relative path")
+	}
+	for _, part := range strings.Split(portable, "/") {
 		if part == ".." {
 			return "", errors.New("path escapes session root")
 		}

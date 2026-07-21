@@ -37,6 +37,11 @@ func TestRunRecordsOutputAndNonZeroExit(t *testing.T) {
 	if result.ExitCode != 7 || stdout.String() != "hello stdout" || stderr.String() != "hello stderr" {
 		t.Fatalf("result=%+v stdout=%q stderr=%q", result, stdout.String(), stderr.String())
 	}
+	for _, expected := range []string{"Session: " + result.SessionID, "Evidence: observed=", "Changed: added=", "Risks: total=", "Exit: child=7 state=completed", "Report: " + filepath.Join(result.SessionDir, "report.html")} {
+		if !bytes.Contains([]byte(result.Summary), []byte(expected)) {
+			t.Fatalf("run summary missing %q: %s", expected, result.Summary)
+		}
+	}
 	data, err := os.ReadFile(filepath.Join(result.SessionDir, "session.json"))
 	if err != nil {
 		t.Fatal(err)

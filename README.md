@@ -3,6 +3,7 @@
 **Language:** English | [简体中文](README.zh-CN.md)
 
 [![Windows CI](https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml/badge.svg)](https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml)
+[![Unix CI](https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml/badge.svg)](https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml)
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D4?logo=windows&logoColor=white)
 ![Evidence](https://img.shields.io/badge/Evidence-Local--first-2ea44f)
@@ -30,7 +31,7 @@ AFR provides a small, auditable loop:
 | Privacy | Session-scoped HMAC placeholders and fail-closed handling for binary, unknown, or oversized records |
 | Risk signals | Deterministic checks for visible destructive commands, secrets, privilege requests, network targets, and bulk changes |
 | Integrity | Versioned JSONL event hash chain plus SHA-256 manifest for evidence and derived reports |
-| Reports | `agent-flight.md`, `agent-risk.json`, and a single-file offline `report.html` |
+| Reports | `agent-flight.md`, `agent-risk.json`, and offline `report.html` with a bounded, filterable event timeline |
 | Operations | `list`, `show`, streaming `verify`, and preview-first `clean` |
 | Integrations | One shared thin skill for Codex and Claude Code; no hooks, daemon, MCP server, or duplicated recorder logic |
 
@@ -46,9 +47,10 @@ flowchart LR
   Workspace --> Redact
   Redact --> Events["events.jsonl hash chain"]
   Redact --> Artifacts["Snapshots + patch"]
+  Redact --> Reports["Markdown / JSON / offline HTML"]
   Events --> Manifest["manifest.json"]
   Artifacts --> Manifest
-  Manifest --> Reports["Markdown / JSON / offline HTML"]
+  Reports --> Manifest
   Manifest --> Verify["afr verify"]
 ```
 
@@ -119,7 +121,7 @@ go test ./...
 .\scripts\release-check.ps1 -Full
 ```
 
-The full release check covers the security matrix, 100 forced terminations, 100 concurrent output writers, the fixed 10,000-file benchmark, Windows build and checksum, and both plugin manifests.
+The full release check covers the security matrix, 100 forced terminations, 100 concurrent output writers, the fixed 10,000-file benchmark, Windows build and checksum, and both plugin manifests. GitHub CI additionally runs tests, build, real `run`, and `verify` on Windows, Ubuntu, and macOS.
 
 ## Repository Layout
 
@@ -129,7 +131,7 @@ internal/     recorder, workspace evidence, redaction, risks, reports, verificat
 plugins/afr/  shared Codex and Claude Code plugin root
 scripts/      build, benchmark, and release checks
 docs/         plan, TODO, architecture, security, quick start, release checklist
-.github/      Windows CI and artifact build
+.github/      Windows artifact CI plus Ubuntu/macOS test and smoke CI
 ```
 
 ## Documentation
@@ -143,4 +145,4 @@ docs/         plan, TODO, architecture, security, quick start, release checklist
 
 ## Status
 
-The Windows x64 v0.1 P0 acceptance checklist is complete. Linux and macOS builds, native host hooks, digital signatures, remote witnessing, indexing, and team services remain explicitly outside the v0.1 boundary.
+The v0.1 candidate now includes the bounded HTML event timeline, fixed six-line run summary, and passing Windows/Ubuntu/macOS CI. It is not a formal release yet: the remaining gates are the License decision, authenticated Claude smoke, clean-VM verification, final candidate consistency check, public tag/Release, and download-back verification. Windows x64 remains the release artifact; Ubuntu and macOS support is beta. Native hooks and broader platform services remain data-gated.

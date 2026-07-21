@@ -1,0 +1,28 @@
+name: unix
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - shell: bash
+        run: |
+          go build -o "$RUNNER_TEMP/afr" ./cmd/afr
+          mkdir -p "$RUNNER_TEMP/home" "$RUNNER_TEMP/workspace"
+          HOME="$RUNNER_TEMP/home" "$RUNNER_TEMP/afr" run --workspace "$RUNNER_TEMP/workspace" -- sh -c 'printf AFR_UNIX_SMOKE' 2>"$RUNNER_TEMP/summary"
+          grep -q '^Session: ' "$RUNNER_TEMP/summary"
+          grep -q '^Evidence: observed=' "$RUNNER_TEMP/summary"
+          grep -q '^Exit: child=0 state=completed' "$RUNNER_TEMP/summary"
+          grep -q '^Report: /' "$RUNNER_TEMP/summary"
+          HOME="$RUNNER_TEMP/home" "$RUNNER_TEMP/afr" verify latest

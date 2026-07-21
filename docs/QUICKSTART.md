@@ -36,7 +36,18 @@ Claude Code 使用打印模式：
 afr run --workspace (Get-Location).Path -- claude --print "只读取仓库并概括目录结构，不要修改文件"
 ```
 
-任务结束时终端会显示 `AFR session <session-id>: <path>`。即使子进程失败，AFR 仍保留可检查的失败会话。
+任务结束时，AFR 会把固定六行摘要写入 stderr；child stdout 保持原样。示例中的 capability 与计数会按实际会话变化：
+
+```text
+Session: 20260721T120000.000000000Z-example
+Evidence: observed=process_output,workspace_snapshot; not_observable=network_monitor,os_file_monitor; truncated=false
+Changed: added=0 modified=0 deleted=0 renamed=0 pre_existing=0
+Risks: total=0 highest=none
+Exit: child=0 state=complete
+Report: C:\Users\you\.afr\sessions\20260721T120000.000000000Z-example\report.html
+```
+
+即使子进程失败，AFR 仍保留可检查的失败会话。
 
 ## 3. 查看报告并校验
 

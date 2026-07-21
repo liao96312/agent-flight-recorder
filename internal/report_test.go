@@ -3,12 +3,14 @@ package afr
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"html"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestReportViewIsSharedAndDeterministic(t *testing.T) {
@@ -76,5 +78,69 @@ func TestHTMLReportEscapesInjectionAndBoundsContent(t *testing.T) {
 	}
 	if len(view.Output[0].Preview) > reportPreviewLimit || bytes.Count(document, []byte("界")) > reportPreviewLimit/len([]byte("界"))+1 {
 		t.Fatal("HTML output preview exceeded its byte limit")
+	}
+}
+
+func TestReportTimelineBoundsHundredThousandEvents(t *testing.T) {
+	root := t.TempDir()
+	redactor, _ := NewRedactor(&Fingerprinter{})
+	writer, err := NewEventWriter(root, redactor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := 1; index <= 100000; index++ {
+		payload := map[string]any{"index": index}
+		if index == 1 {
+			payload["text"] = strings.Repeat("界", 300)
+		}
+		if _, err := writer.Append("fixture", "test", payload, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	timeline, err := readReportTimeline(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if timeline.TotalEvents != 100000 || len(timeline.Items) != 1001 {
+		t.Fatalf("timeline total=%d items=%d", timeline.TotalEvents, len(timeline.Items))
+	}
+	marker := timeline.Items[500]
+	if timeline.Items[0].Seq != 1 || timeline.Items[499].Seq != 500 || marker.OmittedCount != 99000 || marker.OmittedFrom != 501 || marker.OmittedTo != 99500 || timeline.Items[501].Seq != 99501 || timeline.Items[1000].Seq != 100000 {
+		t.Fatalf("unexpected timeline bounds: first=%d marker=%+v last-first=%d last=%d", timeline.Items[0].Seq, marker, timeline.Items[501].Seq, timeline.Items[1000].Seq)
+	}
+	if !timeline.Items[0].SummaryTruncated || len(timeline.Items[0].Summary) > reportTimelineSummaryLimit || !utf8.ValidString(timeline.Items[0].Summary) {
+		t.Fatalf("summary was not safely bounded: bytes=%d truncated=%t", len(timeline.Items[0].Summary), timeline.Items[0].SummaryTruncated)
+	}
+
+	view := NewReportView(SessionMetadata{ID: "timeline", State: "completed"}, WorkspaceDelta{}, nil, map[string]uint64{"fixture": 100000}, nil)
+	view.Timeline = timeline
+	if err := writeHTMLReport(root, view, redactor); err != nil {
+		t.Fatal(err)
+	}
+	document, err := os.ReadFile(filepath.Join(root, "report.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Count(document, []byte("data-event-row")) != 1000 || !bytes.Contains(document, []byte("99000 events omitted (seq 501–99500)")) || !bytes.Contains(document, []byte("[summary truncated]")) {
+		t.Fatal("HTML timeline did not preserve its fixed bounds and markers")
+	}
+}
+
+func TestFormatRunSummaryUsesCapabilityVector(t *testing.T) {
+	exitCode := 7
+	view := NewReportView(
+		SessionMetadata{ID: "session", State: "completed", ChildExitCode: &exitCode, Capabilities: []string{"workspace_scan=observed", "network_monitor=not_observable", "process=observed", "native_tool_events=not_observable"}},
+		WorkspaceDelta{Added: []string{"a"}, Modified: []string{"b", "c"}, Deleted: []string{"d"}, Renamed: []RenameEvidence{{From: "e", To: "f"}}, PreExisting: []string{"g"}},
+		[]RiskFinding{{RuleID: "risk", RuleVersion: 1, Severity: "high"}},
+		nil,
+		[]ReportStream{{Stream: "stdout", Truncated: true}},
+	)
+	want := fmt.Sprintf("Session: session\nEvidence: observed=process,workspace_scan; not_observable=native_tool_events,network_monitor; truncated=true\nChanged: added=1 modified=2 deleted=1 renamed=1 pre_existing=1\nRisks: total=1 highest=high\nExit: child=7 state=completed\nReport: %s\n", "/tmp/report.html")
+	if got := FormatRunSummary(view, "/tmp/report.html"); got != want {
+		t.Fatalf("summary mismatch\nwant:\n%s\ngot:\n%s", want, got)
 	}
 }

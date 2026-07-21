@@ -3,6 +3,7 @@
 **语言：** [English](README.md) | 简体中文
 
 [![Windows CI](https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml/badge.svg)](https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml)
+[![Unix CI](https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml/badge.svg)](https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml)
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D4?logo=windows&logoColor=white)
 ![Evidence](https://img.shields.io/badge/Evidence-Local--first-2ea44f)
@@ -30,7 +31,7 @@ AFR 提供一个小而完整的闭环：
 | 隐私 | 会话级 HMAC 占位符；二进制、未知编码和超限记录 fail-closed |
 | 风险信号 | 对可见的破坏性命令、secret、提权请求、网络目标和批量改动做确定性检查 |
 | 完整性 | 版本化 JSONL 事件哈希链，以及 evidence / derived 制品 SHA-256 manifest |
-| 报告 | `agent-flight.md`、`agent-risk.json`、单文件离线 `report.html` |
+| 报告 | `agent-flight.md`、`agent-risk.json`，以及带有界可筛选事件时间线的离线 `report.html` |
 | 运维 | `list`、`show`、流式 `verify`、先预览后确认的 `clean` |
 | 集成 | Codex / Claude Code 共用一个薄 skill；没有 hooks、daemon、MCP 或重复记录逻辑 |
 
@@ -46,9 +47,10 @@ flowchart LR
   Workspace --> Redact
   Redact --> Events["events.jsonl 哈希链"]
   Redact --> Artifacts["快照 + patch"]
+  Redact --> Reports["Markdown / JSON / 离线 HTML"]
   Events --> Manifest["manifest.json"]
   Artifacts --> Manifest
-  Manifest --> Reports["Markdown / JSON / 离线 HTML"]
+  Reports --> Manifest
   Manifest --> Verify["afr verify"]
 ```
 
@@ -119,7 +121,7 @@ go test ./...
 .\scripts\release-check.ps1 -Full
 ```
 
-完整发布检查覆盖安全矩阵、100 次强制终止、100 路并发输出、固定 10,000 文件基准、Windows 构建与校验和，以及两个宿主的插件 manifest。
+完整发布检查覆盖安全矩阵、100 次强制终止、100 路并发输出、固定 10,000 文件基准、Windows 构建与校验和，以及两个宿主的插件 manifest。GitHub CI 还会在 Windows、Ubuntu 和 macOS 上执行测试、构建、真实 `run` 与 `verify`。
 
 ## 仓库结构
 
@@ -129,7 +131,7 @@ internal/     记录、工作区证据、脱敏、风险、报告与校验
 plugins/afr/  Codex / Claude Code 共享插件根
 scripts/      构建、基准与发布检查
 docs/         计划、TODO、架构、安全、快速开始与发布检查表
-.github/      Windows CI 与 artifact 构建
+.github/      Windows artifact CI，以及 Ubuntu/macOS 测试与冒烟 CI
 ```
 
 ## 文档
@@ -143,4 +145,4 @@ docs/         计划、TODO、架构、安全、快速开始与发布检查表
 
 ## 当前状态
 
-Windows x64 v0.1 P0 验收已完成。Linux/macOS、宿主原生 hooks、数字签名、远端见证、索引和团队服务明确不属于 v0.1 范围。
+v0.1 候选版现已包含 HTML 有界事件时间线、固定六行运行摘要，并通过 Windows/Ubuntu/macOS CI，但尚未正式发布。剩余门槛是 License 决策、已登录 Claude 冒烟、干净 VM 验证、最终候选一致性检查、公开 tag/Release 与回下载验证。Windows x64 仍是发布制品，Ubuntu 和 macOS 为 beta；原生 hooks 和更大的平台能力继续由真实数据门控制。

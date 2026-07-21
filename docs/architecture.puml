@@ -190,7 +190,7 @@ par stdout
     Safe -> Writer : redacted process_output / finding
     Writer -> Store : seq + chain hash + append
   end
-and stderr
+else stderr
   loop 每个 bounded record
     Agent -> Capture : stderr raw bytes
     Capture --> User : 原样终端显示（不持久化）
@@ -259,9 +259,9 @@ Interrupted --> Finalizing : 已记录实际终止结果
 Finalizing --> Completed : events/session/reports/manifest\n完成并关闭
 Finalizing --> Failed : 可诊断的收尾失败
 
-Starting ..> Incomplete : AFR hard kill / power loss\n后续命令推断
-Running ..> Incomplete : AFR hard kill / torn tail\n后续命令推断
-Finalizing ..> Incomplete : artifact/manifest 未完成\n后续命令推断
+Starting -[dashed]-> Incomplete : AFR hard kill / power loss\n后续命令推断
+Running -[dashed]-> Incomplete : AFR hard kill / torn tail\n后续命令推断
+Finalizing -[dashed]-> Incomplete : artifact/manifest 未完成\n后续命令推断
 
 Completed --> [*]
 Failed --> [*]
@@ -296,7 +296,7 @@ partition "Raw Sources（不可信）" #FFF2CC {
 partition "In-Memory Safety" #E2F0D9 {
   if (可安全解析为有界文本记录？) then (是)
     :标准化字段与编码;
-    :应用内置 + 用户 RE2 脱敏;
+    :应用内置脱敏\n（用户 RE2 为 P1 计划）;
     :使用会话内 HMAC 生成关联占位符;
   else (否)
     :丢弃正文;
@@ -305,7 +305,7 @@ partition "In-Memory Safety" #E2F0D9 {
 
   if (超过 stream / Diff 容量上限？) then (是)
     :停止保存后续正文;
-    :继续 drain、计数与计算完整 hash;
+    :继续 drain、计数与计算\n会话级 HMAC 指纹;
     :生成 truncation marker;
   endif
 
@@ -610,32 +610,49 @@ else 全部通过
 end
 @enduml
 
-@startgantt
-title AFR 路线图（1 名全职开发者估算）
+@startuml AFR_10_Next_Roadmap
+title AFR 下一阶段路线图（2026-07-21 复核基线）
 
-Project starts 2026-07-21
-saturday are closed
-sunday are closed
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Microsoft YaHei
+skinparam ArrowColor #44546A
+left to right direction
 
-[Phase 0 契约冻结] as [F0] lasts 2 days
-[M0 记录闭环] as [M0] lasts 5 days
-[M0] starts at [F0]'s end
-[M1 工作区证据] as [M1] lasts 5 days
-[M1] starts at [M0]'s end
-[两周停止门槛] as [Gate2] happens at [M1]'s end
-[M2 隐私与完整性] as [M2] lasts 5 days
-[M2] starts at [M1]'s end
-[M3 报告 / Windows / 薄插件] as [M3] lasts 5 days
-[M3] starts at [M2]'s end
-[CLI + 薄插件 v0.1] as [V01] happens at [M3]'s end
+rectangle "v0.1 候选实现\n核心、Windows 制品、薄插件\n已合并到公开仓库" as Candidate #E2F0D9
+rectangle "P0 代码收口（已完成）\nM3-22 有界事件时间线\nM3-23 六行运行摘要" as P0Close #E2F0D9
+rectangle "◇ REL-01\nLicense 已确认？" as License #FCE4D6
+rectangle "人工发布门槛\nREL-02 已登录 Claude 实调用\nREL-03 独立干净 Windows VM" as Manual #FFF2CC
+rectangle "最终候选\nREL-04 release-check + Windows/Unix CI\n版本 / commit / SHA 一致" as RC #D9EAF7
+rectangle "正式公开发布\nREL-05 v0.1.0 tag + Release\nREL-06 回下载 / 公共安装复验" as Release #C6E0B4
+rectangle "P1 可用性（约 2–3 天）\nshow --open → .afrignore → .afr.json" as P1 #D9EAF7
+rectangle "公开试用（事件驱动）\nR0-09：20 次真实会话\n本地记录价值、误报、缺口与开销" as Pilot #E4DFEC
+rectangle "◇ DEC-01\n是否有多个 session 证明\n同一缺口反复阻碍复核？" as DataGate #FCE4D6
+rectangle "保持 CLI + 薄插件\n修复具体缺陷并继续观察" as Maintain #E2F0D9
+rectangle "只启动一个有证据的方向\n例如 M4 hooks / 索引 / 团队汇总" as OneDirection #F4CCCC
 
--- 仅在真实证据缺口触发 --
-[M4 Hook 合约与 afr hook] as [H0] lasts 5 days
-[H0] starts at [V01]'s end
-[Codex Hook 适配] as [C1] lasts 4 days
-[C1] starts at [H0]'s end
-[Claude Code Hook 适配] as [H1] lasts 4 days
-[H1] starts at [H0]'s end
-[Hook v0.2] as [V02] happens at [C1]'s end
+Candidate --> P0Close
+Candidate --> License
+P0Close --> Manual
+Manual --> RC
+License --> RC : 已确认
+RC --> Release
+Release --> P1 : 并行 A
+Release --> Pilot : 并行 B\n逐条记录 version/commit
+Pilot --> DataGate
+DataGate --> OneDirection : 是，ADR 记录收益与成本
+DataGate --> Maintain : 否
 
-@endgantt
+note bottom of License
+  公开可见不等于开源许可。
+  未确认时继续本地 P0 工作，
+  但不得创建正式 Release。
+end note
+
+note bottom of OneDirection
+  report 重建、replay、Dify、签名、
+  daemon、MCP 等仍是条件性 backlog；
+  不允许一次并行启动多个扩展。
+end note
+
+@enduml

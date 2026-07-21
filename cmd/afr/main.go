@@ -374,7 +374,7 @@ func runCommand(args []string) int {
 		}
 		return exitAFR
 	}
-	fmt.Fprintf(os.Stderr, "AFR session %s: %s\n", result.SessionID, result.SessionDir)
+	fmt.Fprintf(os.Stderr, "\n%s", result.Summary)
 	return result.ExitCode
 }
 
