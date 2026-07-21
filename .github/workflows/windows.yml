@@ -21,3 +21,12 @@ jobs:
           New-Item -ItemType Directory -Path $env:USERPROFILE | Out-Null
           ./dist/afr-windows-amd64.exe version
           ./dist/afr-windows-amd64.exe list --json
+          $expected = (Get-Content ./dist/SHA256SUMS).Split(' ')[0]
+          $actual = (Get-FileHash -Algorithm SHA256 ./dist/afr-windows-amd64.exe).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "checksum mismatch: $actual != $expected" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: afr-windows-amd64
+          path: |
+            dist/afr-windows-amd64.exe
+            dist/SHA256SUMS
