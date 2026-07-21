@@ -307,7 +307,7 @@
   - 依赖：M2-17。
   - 验收：缺失、替换、截断 patch/snapshot/report 返回具体相对路径和 expected/actual metadata。
 
-- [ ] **M2-20 [P0] 全目录 secret 扫描测试**
+- [x] **M2-20 [P0] 全目录 secret 扫描测试**
   - 依赖：M2-02 至 M2-10。
   - 验收：假 secret 分布在 argv、stdout、stderr、JSON、Diff、路径、错误、报告，全 session 根零明文命中。
 

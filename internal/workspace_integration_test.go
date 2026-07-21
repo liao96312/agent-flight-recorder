@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -162,15 +163,27 @@ func TestRunLeavesNoPlaintextSecretInSession(t *testing.T) {
 		}
 		fmt.Fprintln(os.Stdout, "password="+secret)
 		fmt.Fprintln(os.Stderr, "Bearer "+secret+"abcdefghijkl")
+		fmt.Fprintln(os.Stderr, "error: failed at password="+secret)
 		root := os.Getenv("AFR_TEST_SECRET_ROOT")
-		_ = os.WriteFile(filepath.Join(root, "token="+secret+".txt"), []byte(secret), 0o600)
+		_ = os.WriteFile(filepath.Join(root, "tracked.txt"), []byte("password="+secret+"\n"), 0o600)
+		_ = os.WriteFile(filepath.Join(root, "token="+secret+".txt"), []byte("password="+secret+"\n"), 0o600)
 		os.Exit(0)
+	}
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git unavailable")
 	}
 	base := t.TempDir()
 	workspace := filepath.Join(base, "password="+secret)
 	if err := os.Mkdir(workspace, 0o700); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(workspace, "tracked.txt"), []byte("safe\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGitFixture(t, git, workspace, "init", "-q")
+	runGitFixture(t, git, workspace, "add", ".")
+	runGitFixture(t, git, workspace, "commit", "-qm", "base")
 	t.Setenv("AFR_TEST_SECRET_CHILD", "1")
 	t.Setenv("AFR_TEST_SECRET_ROOT", workspace)
 	t.Setenv("AFR_SECRET_ENV", secret)
@@ -186,6 +199,9 @@ func TestRunLeavesNoPlaintextSecretInSession(t *testing.T) {
 	err = filepath.Walk(result.SessionDir, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil || info.IsDir() {
 			return walkErr
+		}
+		if strings.Contains(path, secret) {
+			t.Errorf("plaintext secret in artifact path %s", path)
 		}
 		data, readErr := os.ReadFile(path)
 		if readErr != nil {
@@ -210,6 +226,18 @@ func TestRunLeavesNoPlaintextSecretInSession(t *testing.T) {
 	}
 	if !foundSensitiveRisk {
 		t.Fatal("sensitive evidence did not produce a redacted risk finding")
+	}
+	patch, err := os.ReadFile(filepath.Join(result.SessionDir, "diffs", "workspace.patch"))
+	if err != nil || bytes.Contains(patch, []byte(secret)) || !bytes.Contains(patch, []byte("[REDACTED:")) {
+		t.Fatalf("patch was not safely redacted: %s error=%v", patch, err)
+	}
+	for _, relative := range derivedReportPaths {
+		if _, err := os.Stat(filepath.Join(result.SessionDir, relative)); err != nil {
+			t.Fatalf("report %s missing: %v", relative, err)
+		}
+	}
+	if verification := VerifySession(result.SessionDir); !verification.Valid {
+		t.Fatalf("verification=%+v", verification)
 	}
 }
 
