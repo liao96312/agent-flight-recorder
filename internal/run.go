@@ -9,8 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 const defaultOutputLimit = int64(200 * 1024 * 1024)
@@ -40,6 +42,7 @@ type outputCapture struct {
 	recorded    int64
 	fingerprint hash.Hash
 	records     *RecordAccumulator
+	preview     strings.Builder
 }
 
 func Run(options RunOptions, argv []string) (RunResult, error) {
@@ -175,6 +178,7 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 			}
 			state.recorded += int64(record.Bytes)
 			state.chunks++
+			appendReportPreview(&state.preview, record.Text)
 			payload := map[string]any{
 				"stream":     state.stream,
 				"record_seq": state.chunks,
@@ -353,7 +357,19 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 	if err := session.Finish("completed", &exitCode, seq, hash); err != nil {
 		return result, err
 	}
-	view := NewReportView(session.Meta, delta, findings, eventCounts)
+	streams := []ReportStream{}
+	for _, capture := range []*outputCapture{&stdoutCapture, &stderrCapture} {
+		streams = append(streams, ReportStream{
+			Stream:        capture.stream,
+			TotalBytes:    capture.totalBytes,
+			RecordedBytes: capture.recorded,
+			Records:       capture.chunks,
+			Truncated:     capture.totalBytes > options.OutputLimit,
+			Fingerprint:   hex.EncodeToString(capture.fingerprint.Sum(nil)),
+			Preview:       capture.preview.String(),
+		})
+	}
+	view := NewReportView(session.Meta, delta, findings, eventCounts, streams)
 	if err := WriteReportArtifacts(session.Root, view, redactor); err != nil {
 		return result, err
 	}
@@ -370,6 +386,24 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		return result, fmt.Errorf("wait for child: %w", waitErr)
 	}
 	return result, nil
+}
+
+func appendReportPreview(preview *strings.Builder, text string) {
+	if text == "" || preview.Len() >= reportPreviewLimit {
+		return
+	}
+	if preview.Len() > 0 {
+		preview.WriteByte('\n')
+	}
+	remaining := reportPreviewLimit - preview.Len()
+	data := []byte(text)
+	if len(data) > remaining {
+		data = data[:remaining]
+		for len(data) > 0 && !utf8.Valid(data) {
+			data = data[:len(data)-1]
+		}
+	}
+	_, _ = preview.Write(data)
 }
 
 func waitForChild(command *exec.Cmd, tree *processTree, waitDone <-chan error, interrupts <-chan os.Signal, gracePeriod time.Duration) (waitErr error, interrupted, forced bool, signalName string, forwardOK bool) {

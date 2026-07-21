@@ -6,17 +6,30 @@ import (
 	"strings"
 )
 
-var derivedReportPaths = []string{"agent-flight.md", "agent-risk.json"}
+var derivedReportPaths = []string{"agent-flight.md", "agent-risk.json", "report.html"}
+
+const reportPreviewLimit = 4 * 1024
 
 type ReportEventCount struct {
 	Type  string `json:"type"`
 	Count uint64 `json:"count"`
 }
 
+type ReportStream struct {
+	Stream        string `json:"stream"`
+	TotalBytes    int64  `json:"total_bytes"`
+	RecordedBytes int64  `json:"recorded_bytes"`
+	Records       uint64 `json:"records"`
+	Truncated     bool   `json:"truncated"`
+	Fingerprint   string `json:"fingerprint"`
+	Preview       string `json:"preview,omitempty"`
+}
+
 type ReportView struct {
 	FormatVersion int                `json:"format_version"`
 	Session       SessionMetadata    `json:"session"`
 	Events        []ReportEventCount `json:"events"`
+	Output        []ReportStream     `json:"output"`
 	Changes       WorkspaceDelta     `json:"changes"`
 	Risks         []RiskFinding      `json:"risks"`
 	HighestRisk   string             `json:"highest_risk"`
@@ -32,7 +45,7 @@ type RiskReport struct {
 	Limitations   []string      `json:"limitations"`
 }
 
-func NewReportView(session SessionMetadata, changes WorkspaceDelta, findings []RiskFinding, counts map[string]uint64) ReportView {
+func NewReportView(session SessionMetadata, changes WorkspaceDelta, findings []RiskFinding, counts map[string]uint64, output []ReportStream) ReportView {
 	sort.Strings(session.Capabilities)
 	sort.Strings(changes.Added)
 	sort.Strings(changes.Modified)
@@ -54,6 +67,10 @@ func NewReportView(session SessionMetadata, changes WorkspaceDelta, findings []R
 		events = append(events, ReportEventCount{Type: eventType, Count: count})
 	}
 	sort.Slice(events, func(i, j int) bool { return events[i].Type < events[j].Type })
+	sort.Slice(output, func(i, j int) bool { return output[i].Stream < output[j].Stream })
+	for index := range output {
+		output[index].Preview = truncateUTF8(output[index].Preview, reportPreviewLimit)
+	}
 	limitations := []string{}
 	for _, capability := range session.Capabilities {
 		if strings.HasSuffix(capability, "=not_observable") {
@@ -73,11 +90,22 @@ func NewReportView(session SessionMetadata, changes WorkspaceDelta, findings []R
 		FormatVersion: 1,
 		Session:       session,
 		Events:        events,
+		Output:        output,
 		Changes:       changes,
 		Risks:         findings,
 		HighestRisk:   highestSeverity(findings),
 		Limitations:   limitations,
 	}
+}
+
+func truncateUTF8(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+	for limit > 0 && value[limit]&0xc0 == 0x80 {
+		limit--
+	}
+	return value[:limit]
 }
 
 func WriteReportArtifacts(sessionRoot string, view ReportView, redactor *Redactor) error {
@@ -92,7 +120,10 @@ func WriteReportArtifacts(sessionRoot string, view ReportView, redactor *Redacto
 		Findings:      view.Risks,
 		Limitations:   view.Limitations,
 	}
-	return atomicWriteJSON(sessionRoot, "agent-risk.json", risk, redactor)
+	if err := atomicWriteJSON(sessionRoot, "agent-risk.json", risk, redactor); err != nil {
+		return err
+	}
+	return writeHTMLReport(sessionRoot, view, redactor)
 }
 
 func markdownReport(view ReportView) string {
