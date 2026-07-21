@@ -213,7 +213,7 @@ func CollectWorkspace(root, excludedRoot string, fingerprinter *Fingerprinter, l
 		}
 		snapshot.ScannedFiles++
 		record.ModifiedAt = info.ModTime().UTC().Format(time.RFC3339Nano)
-		if info.Mode()&os.ModeSymlink != 0 {
+		if isLinkLike(info) {
 			record.Type = "symlink"
 			target, linkErr := os.Readlink(path)
 			if linkErr != nil {
@@ -229,6 +229,7 @@ func CollectWorkspace(root, excludedRoot string, fingerprinter *Fingerprinter, l
 					record.ResolvedTarget = resolvedTarget
 				} else {
 					record.OmittedReason = "link_target_unresolved"
+					snapshot.Partial = true
 				}
 				record.TargetOutside = !pathWithin(root, target)
 			}
