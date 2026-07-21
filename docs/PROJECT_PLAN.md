@@ -504,6 +504,10 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 5. **插件冒烟**：Codex 与 Claude Code 各自加载、调用 skill、找到 CLI、打开报告。
 6. **基准测试**：10 万事件、大仓库基线、大输出截断；先固定硬件和 fixture 再谈指标。
 
+固定性能 fixture：Windows x64；10,000 个 1 KiB 文本文件（100 目录 × 100 文件，共 10,240,000 bytes），Git clean baseline 后修改 100 个文件；工作区 before/after 各自必须在 10 秒扫描预算内完整完成，再分别记录 delta 与 patch 耗时。事件 fixture 为 100,000 个 1 KiB payload，flush 策略固定为 64 KiB 或 1 秒、关键事件立即 sync。运行 `scripts/benchmark.ps1` 会同时记录 Windows 版本、CPU/逻辑核、物理内存、当前磁盘与余量、Git 版本和分阶段耗时；日常 `go test ./...` 不运行重 fixture。
+
+2026-07-21 基线：Windows 10 IoT Enterprise LTSC 10.0.19044、i5-12400（12 logical CPUs）、31.77 GiB RAM、D: 余量 396.33 GiB、Git 2.54.0；before 1.054 s、after 1.043 s、delta 3.003 ms、patch 1.656 s，完整 fixture 通过且未触发 partial/truncated。
+
 ### 12.3 发布门槛
 
 - 所有 JSON/JSONL 均通过版本化 schema 或等价 Go 解码检查。
