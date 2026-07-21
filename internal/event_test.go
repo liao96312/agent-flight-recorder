@@ -90,7 +90,7 @@ func TestEventWriterHundredThousandChain(t *testing.T) {
 
 func TestSafeJoinRejectsEscapes(t *testing.T) {
 	root := t.TempDir()
-	for _, path := range []string{"", ".", "..", "../other", "snapshots/../session.json", `C:\\outside`, `/outside`} {
+	for _, path := range []string{"", ".", "..", "../other", "snapshots/../session.json", `C:\\outside`, `\\server\share`, `/outside`} {
 		if got, err := safeJoin(root, path); err == nil {
 			t.Errorf("safeJoin(%q) = %q, want error", path, got)
 		}

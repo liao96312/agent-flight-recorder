@@ -33,6 +33,7 @@ type RunResult struct {
 	SessionID  string
 	SessionDir string
 	ExitCode   int
+	Summary    string
 }
 
 type outputCapture struct {
@@ -380,13 +381,19 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 			Preview:       capture.preview.String(),
 		})
 	}
+	timeline, err := readReportTimeline(session.Root)
+	if err != nil {
+		return result, err
+	}
 	view := NewReportView(session.Meta, delta, findings, eventCounts, streams)
+	view.Timeline = timeline
 	if err := WriteReportArtifacts(session.Root, view, redactor); err != nil {
 		return result, err
 	}
 	if err := WriteManifest(session.Root, session.Meta.ID, requiredEvidencePaths, derivedReportPaths, redactor); err != nil {
 		return result, err
 	}
+	result.Summary = FormatRunSummary(view, filepath.Join(session.Root, "report.html"))
 	captureMu.Lock()
 	err = captureErr
 	captureMu.Unlock()
