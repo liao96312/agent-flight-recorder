@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -13,6 +14,45 @@ func TestVerifySessionAcceptsUntamperedEvidence(t *testing.T) {
 	result := VerifySession(root)
 	if !result.Valid || result.Issue != nil || result.Events != 2 || result.EvidenceChecked != len(requiredEvidencePaths) || result.DerivedChecked != 1 {
 		t.Fatalf("result=%+v", result)
+	}
+}
+
+func TestVerifySessionReadsV1(t *testing.T) {
+	if EventFormatVersion != 1 || SessionFormatVersion != 1 || ManifestFormatVersion != 1 {
+		t.Fatal("keep this v1 compatibility fixture when introducing a newer writer format")
+	}
+	root := createVerifiableSession(t, true)
+	result := VerifySession(root)
+	if !result.Valid {
+		t.Fatalf("v1 session rejected: %+v", result)
+	}
+}
+
+func TestVerifyRejectsFutureVersionsWithoutModifyingSession(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		wantCode string
+		mutate   func(*testing.T, string)
+	}{
+		{name: "manifest", path: "manifest.json", wantCode: "manifest_version", mutate: setJSONFormatVersion},
+		{name: "event", path: "events.jsonl", wantCode: "event_version", mutate: setFirstEventFormatVersion},
+		{name: "session", path: "session.json", wantCode: "session_invalid", mutate: setJSONFormatVersion},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := createVerifiableSession(t, true)
+			test.mutate(t, filepath.Join(root, filepath.FromSlash(test.path)))
+			before := snapshotSessionFiles(t, root)
+			result := VerifySession(root)
+			if result.Valid || result.Issue == nil || result.Issue.Code != test.wantCode {
+				t.Fatalf("result=%+v", result)
+			}
+			after := snapshotSessionFiles(t, root)
+			if !reflect.DeepEqual(before, after) {
+				t.Fatal("verify modified a session with an unsupported future format")
+			}
+		})
 	}
 }
 
@@ -174,4 +214,68 @@ func createVerifiableSession(t *testing.T, withDerived bool) string {
 
 func joinEventLines(lines [][]byte) []byte {
 	return append(bytes.Join(lines, []byte{'\n'}), '\n')
+}
+
+func setJSONFormatVersion(t *testing.T, path string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var value map[string]any
+	if err := json.Unmarshal(data, &value); err != nil {
+		t.Fatal(err)
+	}
+	value["format_version"] = float64(2)
+	data, err = json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func setFirstEventFormatVersion(t *testing.T, path string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := bytes.Split(bytes.TrimSuffix(data, []byte{'\n'}), []byte{'\n'})
+	var envelope map[string]any
+	if err := json.Unmarshal(lines[0], &envelope); err != nil {
+		t.Fatal(err)
+	}
+	envelope["format_version"] = float64(2)
+	lines[0], err = json.Marshal(envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, joinEventLines(lines), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func snapshotSessionFiles(t *testing.T, root string) map[string][]byte {
+	t.Helper()
+	files := map[string][]byte{}
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		files[relative], err = os.ReadFile(path)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return files
 }

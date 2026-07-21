@@ -9,7 +9,7 @@ Use the `afr` executable as a thin local wrapper. AFR records only a **new child
 
 ## Before running
 
-1. Run `afr version` and report the installed version. If the command is missing, stop and ask the user to install or build the CLI; do not install it silently.
+1. Run `afr version` and report the installed version. This plugin version requires AFR CLI `0.1.x`. If the command is missing or its version is incompatible, stop with the observed version and a clear request to install a compatible CLI; do not install it silently.
 2. Resolve the workspace to an absolute path.
 3. Confirm the requested host and new task. Treat `$ARGUMENTS` as the user's requested action when present.
 

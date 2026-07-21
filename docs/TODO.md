@@ -391,11 +391,11 @@
   - 依赖：M3-16、M3-17。
   - 验收：官方/本地 validator 通过；本地 marketplace 能发现；skill 能启动一次 `afr run -- codex exec ...`。
 
-- [ ] **M3-19 [P0] 校验 Claude Code 插件**
+- [x] **M3-19 [P0] 校验 Claude Code 插件**
   - 依赖：M3-16、M3-17。
   - 验收：`claude --plugin-dir` 可加载；namespaced skill 可调用同一 CLI；额外 Codex manifest 不造成错误。
 
-- [ ] **M3-20 [P0] 双宿主共根失败时最小分包**
+- [x] **M3-20 [P0] 双宿主共根失败时最小分包**
   - 依赖：M3-18、M3-19。
   - 验收：仅当真实 validator/loader 失败才拆 manifest 包；共享 skill 和 CLI 仍为单一来源。
 
@@ -469,7 +469,7 @@
   - 依赖：F0-03、M2。
   - 验收：清楚区分本地一致性、非数字签名、not_observable、会话共享风险和删除方式。
 
-- [ ] **R0-03 [P0] 输出 Windows 校验和**
+- [x] **R0-03 [P0] 输出 Windows 校验和**
   - 依赖：M3-14。
   - 验收：发布包含 `afr.exe`、SHA-256、版本说明；校验在干净 VM 通过。
 
@@ -481,11 +481,11 @@
   - 依赖：M0-15、M3-21。
   - 验收：go test/build 与最小 run/verify 通过；非 Windows 明确标 beta。
 
-- [ ] **R0-06 [P0] Schema 向后读取测试**
+- [x] **R0-06 [P0] Schema 向后读取测试**
   - 依赖：M2-17、M3-15。
   - 验收：新版可只读 verify v1；未知未来版本拒绝写入，不修改源会话。
 
-- [ ] **R0-07 [P0] 插件升级/禁用/卸载测试**
+- [x] **R0-07 [P0] 插件升级/禁用/卸载测试**
   - 依赖：M3-18、M3-19。
   - 验收：操作不删除 `~/.afr/sessions`；CLI 缺失和版本不兼容有清晰提示。
 

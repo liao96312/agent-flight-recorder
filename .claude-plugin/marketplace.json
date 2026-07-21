@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "afr-tools",
+  "owner": {
+    "name": "liao96312"
+  },
+  "description": "Agent Flight Recorder plugins for local coding-agent evidence.",
+  "plugins": [
+    {
+      "name": "afr",
+      "source": "./plugins/afr",
+      "description": "Record and verify local coding-agent runs with the AFR CLI."
+    }
+  ]
+}
