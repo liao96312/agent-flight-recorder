@@ -3,6 +3,7 @@
   "name": "afr",
   "displayName": "Agent Flight Recorder",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "Record, inspect, and verify local coding-agent runs with the Agent Flight Recorder CLI.",
   "author": {
     "name": "liao96312"

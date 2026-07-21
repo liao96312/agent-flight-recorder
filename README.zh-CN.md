@@ -7,6 +7,7 @@
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D4?logo=windows&logoColor=white)
 ![Evidence](https://img.shields.io/badge/Evidence-Local--first-2ea44f)
+[![许可证：MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Agent Flight Recorder（AFR）是一个面向 CLI 编程智能体的本地优先飞行记录器。它通过包装器启动新的非交互式 Codex 或 Claude Code 任务，只采集真实可见的证据，在写盘前脱敏，并生成可离线查看和复核的报告。
 
@@ -145,4 +146,4 @@ docs/         计划、TODO、架构、安全、快速开始与发布检查表
 
 ## 当前状态
 
-v0.1 候选版现已包含 HTML 有界事件时间线、固定六行运行摘要，并通过 Windows/Ubuntu/macOS CI，但尚未正式发布。剩余门槛是 License 决策、已登录 Claude 冒烟、干净 VM 验证、最终候选一致性检查、公开 tag/Release 与回下载验证。Windows x64 仍是发布制品，Ubuntu 和 macOS 为 beta；原生 hooks 和更大的平台能力继续由真实数据门控制。
+v0.1 候选版现已包含 HTML 有界事件时间线、固定六行运行摘要，通过 Windows/Ubuntu/macOS CI，并采用 [MIT License](LICENSE)，但尚未正式发布。剩余门槛是已登录 Claude 冒烟、干净 VM 验证、最终候选一致性检查、公开 tag/Release 与回下载验证。Windows x64 仍是发布制品，Ubuntu 和 macOS 为 beta；原生 hooks 和更大的平台能力继续由真实数据门控制。

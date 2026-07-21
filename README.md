@@ -7,6 +7,7 @@
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D4?logo=windows&logoColor=white)
 ![Evidence](https://img.shields.io/badge/Evidence-Local--first-2ea44f)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Agent Flight Recorder (AFR) is a local-first flight recorder for CLI coding agents. It launches a new non-interactive Codex or Claude Code task, captures the evidence it can actually observe, redacts sensitive content before disk writes, and produces offline reports that can be verified later.
 
@@ -145,4 +146,4 @@ docs/         plan, TODO, architecture, security, quick start, release checklist
 
 ## Status
 
-The v0.1 candidate now includes the bounded HTML event timeline, fixed six-line run summary, and passing Windows/Ubuntu/macOS CI. It is not a formal release yet: the remaining gates are the License decision, authenticated Claude smoke, clean-VM verification, final candidate consistency check, public tag/Release, and download-back verification. Windows x64 remains the release artifact; Ubuntu and macOS support is beta. Native hooks and broader platform services remain data-gated.
+The v0.1 candidate now includes the bounded HTML event timeline, fixed six-line run summary, passing Windows/Ubuntu/macOS CI, and the [MIT License](LICENSE). It is not a formal release yet: the remaining gates are authenticated Claude smoke, clean-VM verification, final candidate consistency check, public tag/Release, and download-back verification. Windows x64 remains the release artifact; Ubuntu and macOS support is beta. Native hooks and broader platform services remain data-gated.

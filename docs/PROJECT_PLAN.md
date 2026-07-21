@@ -35,7 +35,7 @@
 
 | 决策 | 已确认状态 | 下一检查点 |
 |---|---|---|
-| 开源许可证 | 尚未选择；公开可见不等于获得开源许可 | `REL-01`，正式 tag / GitHub Release 前阻塞 |
+| 开源许可证 | 产品负责人于 2026-07-21 选择 MIT | `REL-01` 已完成；根 License、README、插件 manifest 与 release notes 一致 |
 | 产品正式名称 | 已固定为 Agent Flight Recorder / `afr` | 仅在品牌冲突时重开 |
 | 首个验收 Agent | `codex exec` 已完成真实包装与 verify 冒烟 | 每次正式发布复验 |
 | Claude Code 验收 | strict validator、加载和生命周期已通过；已登录账户的 `/afr:afr` 实调用仍缺 | `REL-02` |
@@ -85,7 +85,7 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 
 | 原方案或既有契约 | 当前实现 / 外部事实 | 处理 |
 |---|---|---|
-| 公开可安装的首版 | 仓库已公开，但没有 License、tag 或 GitHub Release | `REL-01` 至 `REL-06` 完成前只称 v0.1 候选版 |
+| 公开可安装的首版 | 仓库已公开并采用 MIT，但没有 tag 或 GitHub Release | `REL-02` 至 `REL-06` 完成前只称 v0.1 候选版 |
 | 运行结束输出 Session、Evidence、Changed、Risks、Exit、Report | 已固定输出六行 stderr 摘要，child stdout 不受污染 | `M3-23 [P0]` 已完成并通过三平台 CI |
 | HTML 提供可筛选的完整时间线 | 已提供有界、已脱敏的 seq 时间线，最多 1,000 行 | `M3-22 [P0]` 已完成；10 万事件 fixture 通过 |
 | 一条命令定位并打开报告 | `show` 可定位报告，但解析器明确拒绝 `--open` | `M3-09 [P1]`，不阻塞 v0.1.0 发布 |
@@ -581,7 +581,7 @@ M1 结束时必须能稳定回答：
 | 顺序 | TODO | 可并行性 | 完成定义 |
 |---:|---|---|---|
 | 1 | ✅ `M3-22` HTML 有界事件时间线；`M3-23` 完整运行摘要 | 已完成 | 10 万事件 fixture、固定六行摘要、child stdout 不污染和三平台 CI 均通过 |
-| 2 | `REL-01` License 决策 | 需要产品负责人明确选择 | 仓库根 License、README / 发布说明表述一致；未选择则不得创建 Release |
+| 2 | ✅ `REL-01` MIT License | 已完成 | 根 License、README、插件 manifest 与发布说明一致 |
 | 3 | `REL-02` 已登录 Claude `/afr:afr`；`REL-03` 独立干净 Windows VM | 两项可并行；均保留机器、版本、命令、session / checksum 证据 | Claude 调用同一 CLI 并 verify；VM 从候选 artifact 完成 version/list 和错误提示检查 |
 | 4 | `REL-04` 最终候选检查 | 依赖顺序 3 | 从最终 `main` commit 运行完整 release-check，CI、版本、SHA-256 和 release notes 指向同一 commit |
 | 5 | `REL-05` tag + GitHub Release；`REL-06` 回下载 / 公共安装复验 | 严格串行 | 公开附件可下载、校验一致、快速开始能从零复现 |
@@ -589,12 +589,12 @@ M1 结束时必须能稳定回答：
 | 6B | `R0-09` 20 次真实会话 | `REL-06` 后立即开始，与 6A 并行；不建设遥测 | 每次记录 version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿，可区分期间的补丁版 |
 | 7 | `DEC-01` 数据门 | 依赖完整 20 次记录，不依赖 6A 全部完成 | 形成 ADR：只启动一个证据最强的方向，或明确保持 wrapper；不得一次启动 hooks、Dify、索引和签名 |
 
-License 或宿主登录等待期间不暂停本地工作：继续完成不依赖外部权限的 P0 项和自动化验证。但不得以“外部阻塞”为由跳过门槛，也不得在门槛未通过时提前打正式 tag。
+宿主登录等待期间不跳过门槛，也不得在人工验收未通过时提前打正式 tag。
 
 ## 14. 发布与运维
 
 - 使用 Go reproducible build 信息，`afr version` 输出版本、commit、构建时间、format version。
-- Windows x64 候选 exe 与校验和已经生成；只有 `REL-01` 至 `REL-06` 通过后才能称为 v0.1.0 正式公开发布。代码签名作为企业增强，不伪装已有签名。
+- Windows x64 候选 exe 与校验和已经生成；项目采用 MIT License，只有 `REL-02` 至 `REL-06` 通过后才能称为 v0.1.0 正式公开发布。代码签名作为企业增强，不伪装已有签名。
 - 目标配置优先级固定为 CLI flags > workspace `.afr.json` > defaults；当前 `.afr.json` 尚未实现，`M2-07` 完成前不得在安装文档中声称可配置。
 - 会话目录默认位于用户主目录 `.afr/sessions`，继承/设置仅当前用户访问权限。
 - 没有后台自动清理；用户显式运行 `clean`。

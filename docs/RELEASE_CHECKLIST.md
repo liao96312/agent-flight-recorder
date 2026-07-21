@@ -46,4 +46,5 @@ Windows PowerShell、Go 1.26、Git、Codex CLI 与 Claude Code 均可用时：
 - Windows GitHub Actions：构建、空 profile 的 `version/list`、SHA-256 复算和 artifact 上传已通过；候选实现 run：<https://github.com/liao96312/agent-flight-recorder/actions/runs/29795780084>。
 - 报告与摘要收口：commit `efc7eb1` 的 10 万事件 fixture 验证时间线最多 1,000 行、显式 omission 和 512 UTF-8 bytes 上限；固定六行摘要、`RunResult` 集成及 child stdout 隔离测试通过。
 - Unix 证据：WSL2 Ubuntu 使用 Go 1.26.5 完成 `go test ./...`、真实 build/run/verify/show 与 Windows/macOS 交叉测试编译；Ubuntu 和 macOS runner 的 go test/build、孙进程终止、真实 run/verify 均通过：[run 29798685253](https://github.com/liao96312/agent-flight-recorder/actions/runs/29798685253)。
-- 当前发布阻塞项：License、独立干净 Windows VM、已登录 Claude 实调用、最终 main 一致性检查、正式 tag / Release 与回下载验证。以上未完成前状态保持 candidate。
+- License：产品负责人于 2026-07-21 选择 MIT；根 `LICENSE`、README、插件 manifest 与 release notes 已统一为 SPDX `MIT`。
+- 当前发布阻塞项：独立干净 Windows VM、已登录 Claude 实调用、最终 main 一致性检查、正式 tag / Release 与回下载验证。以上未完成前状态保持 candidate。

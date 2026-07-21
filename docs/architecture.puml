@@ -621,7 +621,7 @@ left to right direction
 
 rectangle "v0.1 候选实现\n核心、Windows 制品、薄插件\n已合并到公开仓库" as Candidate #E2F0D9
 rectangle "P0 代码收口（已完成）\nM3-22 有界事件时间线\nM3-23 六行运行摘要" as P0Close #E2F0D9
-rectangle "◇ REL-01\nLicense 已确认？" as License #FCE4D6
+rectangle "REL-01 已完成\nMIT License" as License #E2F0D9
 rectangle "人工发布门槛\nREL-02 已登录 Claude 实调用\nREL-03 独立干净 Windows VM" as Manual #FFF2CC
 rectangle "最终候选\nREL-04 release-check + Windows/Unix CI\n版本 / commit / SHA 一致" as RC #D9EAF7
 rectangle "正式公开发布\nREL-05 v0.1.0 tag + Release\nREL-06 回下载 / 公共安装复验" as Release #C6E0B4
@@ -644,9 +644,8 @@ DataGate --> OneDirection : 是，ADR 记录收益与成本
 DataGate --> Maintain : 否
 
 note bottom of License
-  公开可见不等于开源许可。
-  未确认时继续本地 P0 工作，
-  但不得创建正式 Release。
+  根 License、README、插件 manifest
+  与 release notes 使用 SPDX MIT。
 end note
 
 note bottom of OneDirection

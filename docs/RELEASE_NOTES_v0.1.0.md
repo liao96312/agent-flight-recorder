@@ -2,6 +2,8 @@
 
 首个 Windows x64 公开预览版，交付本地单文件 CLI 与共根 Codex / Claude Code 薄插件。
 
+本项目以 [MIT License](../LICENSE) 公开发行。
+
 ## 包含内容
 
 - `afr-windows-amd64.exe`
