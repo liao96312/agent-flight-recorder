@@ -39,4 +39,4 @@ Windows PowerShell、Go 1.26、Git、Codex CLI 与 Claude Code 均可用时：
 - Codex：0.138.0，marketplace 发现/安装成功；兼容模型 `gpt-5.4` 的 AFR 包装冒烟返回 `AFR_CODEX_SMOKE_OK`，session verify 为 63 events、6 evidence、3 derived。
 - Claude Code：2.1.185，strict validator、`--plugin-dir`、marketplace install/disable/enable/update/uninstall 和组件 inventory 均通过；真实 `/afr:afr` 模型调用因本机未登录，发布前需由已登录账户复验。
 - 插件生命周期哨兵：session `20260721T021226.609628600Z-6ba15d328a82d12c6a5a70a6` 的 manifest SHA-256 在两宿主操作前后均为 `fde9db65d601835a408be26897ce1c7b30998c2addc893216d6bae26c748e96e`。
-- Windows GitHub Actions：构建、空 profile 的 `version/list`、SHA-256 复算和 artifact 上传已通过；最终 commit 的 run URL 在发布时补录。
+- Windows GitHub Actions：构建、空 profile 的 `version/list`、SHA-256 复算和 artifact 上传已通过；候选实现 run：<https://github.com/liao96312/agent-flight-recorder/actions/runs/29795780084>。
