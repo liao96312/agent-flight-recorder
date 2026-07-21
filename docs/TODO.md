@@ -3,7 +3,7 @@
 > 与 [PROJECT_PLAN.md](./PROJECT_PLAN.md) 同步维护。任务只有在“验收”可重复通过后才能勾选。
 > 优先级：P0 发布阻塞；P1 正式可用增强；P2 有真实需求后再做。
 > 估算假设：1 名全职开发者，Windows x64 为 v0.1 发布平台。
-> 当前基线：v0.1 核心候选、HTML 有界事件时间线、六行运行摘要和 Unix CI 证据已完成；License、正式 tag / Release 和两项人工发布门槛尚未完成。
+> 当前基线：v0.1 核心候选、HTML 有界事件时间线、六行运行摘要、Unix CI 证据和 MIT License 已完成；正式 tag / Release 和两项人工发布门槛尚未完成。
 
 ## 0. 当前状态
 
@@ -26,7 +26,7 @@
 | 顺序 | 任务 | 当前阻塞 | 进入下一项的条件 |
 |---:|---|---|---|
 | 1 | ✅ `M3-22`、`M3-23` | 已完成 | 10 万事件测试、固定六行摘要和三平台 CI 已通过 |
-| 2 | `REL-01` | 需要产品负责人选择 License | License 文件与文档一致 |
+| 2 | ✅ `REL-01` | 已完成 | MIT License 文件、README、插件 manifest 与 release notes 一致 |
 | 3 | `REL-02`、`REL-03` | 已登录 Claude 账户、独立干净 Windows VM | 两项人工证据写入发布检查表 |
 | 4 | `REL-04` | 顺序 3 | 最终 `main` commit 的 release-check、CI、版本和 SHA 一致 |
 | 5 | `REL-05`、`REL-06` | `REL-01`、`REL-04` | 公开 Release 完成，回下载与公共安装复验通过 |
@@ -529,9 +529,10 @@
   - 依赖：F0-03、F0-14、M3-14 至 M3-20；检查表任务不依赖自身。
   - 验收：测试、基准、secret scan、HTML 网络检查、干净 VM、双宿主插件、文档和校验和都有槽位；候选记录明确标出未完成的 Claude 实调用与独立 VM，不用 validator/CI 代替人工证据。
 
-- [ ] **REL-01 [P0] 确认公开发行 License**
+- [x] **REL-01 [P0] 确认公开发行 License**
   - 依赖：产品负责人明确选择允许公开发行的许可证或其他发行条款。
   - 验收：仓库根存在完整 License / 发行条款，README、插件 manifest 和 release notes 表述一致；若决定暂不授权，本项保持未完成并阻塞 `REL-05`，不擅自替用户选择。
+  - 结果：产品负责人于 2026-07-21 选择 MIT；根 `LICENSE`、中英文 README、Codex / Claude manifest 与 release notes 已统一。
 
 - [ ] **REL-02 [P0] 已登录 Claude Code 真实 skill 冒烟**
   - 依赖：M3-17、M3-19、M3-23；可用的已登录 Claude Code 账户。
@@ -597,7 +598,8 @@ F0 契约
   -> M3 候选报告/清理/Windows 包
   -> 薄 Codex + Claude Code 插件
   -> M3-22 有界时间线 + M3-23 运行摘要（已完成）
-  -> REL-01..REL-06 正式 v0.1.0 发布
+  -> REL-01 MIT License（已完成）
+  -> REL-02..REL-06 正式 v0.1.0 发布
       +-> [并行 A] P1 可用性（show --open / ignore / 配置）
       +-> [并行 B] R0-09 二十次真实会话（逐条记录 version/commit）
                     -> DEC-01 单方向数据门
