@@ -44,4 +44,6 @@ Windows PowerShell、Go 1.26、Git、Codex CLI 与 Claude Code 均可用时：
 - Claude Code：2.1.185，strict validator、`--plugin-dir`、marketplace install/disable/enable/update/uninstall 和组件 inventory 均通过；真实 `/afr:afr` 模型调用因本机未登录，发布前需由已登录账户复验。
 - 插件生命周期哨兵：session `20260721T021226.609628600Z-6ba15d328a82d12c6a5a70a6` 的 manifest SHA-256 在两宿主操作前后均为 `fde9db65d601835a408be26897ce1c7b30998c2addc893216d6bae26c748e96e`。
 - Windows GitHub Actions：构建、空 profile 的 `version/list`、SHA-256 复算和 artifact 上传已通过；候选实现 run：<https://github.com/liao96312/agent-flight-recorder/actions/runs/29795780084>。
-- 2026-07-21 文档—实现复核新增阻塞项：`M3-22` HTML 有界事件时间线、`M3-23` 六项运行摘要、License、独立干净 VM、已登录 Claude 实调用、正式 tag / Release 与回下载验证。以上未完成前状态保持 candidate。
+- 报告与摘要收口：commit `efc7eb1` 的 10 万事件 fixture 验证时间线最多 1,000 行、显式 omission 和 512 UTF-8 bytes 上限；固定六行摘要、`RunResult` 集成及 child stdout 隔离测试通过。
+- Unix 证据：WSL2 Ubuntu 使用 Go 1.26.5 完成 `go test ./...`、真实 build/run/verify/show 与 Windows/macOS 交叉测试编译；Ubuntu 和 macOS runner 的 go test/build、孙进程终止、真实 run/verify 均通过：[run 29798685253](https://github.com/liao96312/agent-flight-recorder/actions/runs/29798685253)。
+- 当前发布阻塞项：License、独立干净 Windows VM、已登录 Claude 实调用、最终 main 一致性检查、正式 tag / Release 与回下载验证。以上未完成前状态保持 candidate。

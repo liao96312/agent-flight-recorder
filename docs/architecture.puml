@@ -620,12 +620,12 @@ skinparam ArrowColor #44546A
 left to right direction
 
 rectangle "v0.1 候选实现\n核心、Windows 制品、薄插件\n已合并到公开仓库" as Candidate #E2F0D9
-rectangle "P0 代码收口（约 1–2 天）\nM3-22 有界事件时间线\nM3-23 六项运行摘要" as P0Close #FFF2CC
+rectangle "P0 代码收口（已完成）\nM3-22 有界事件时间线\nM3-23 六行运行摘要" as P0Close #E2F0D9
 rectangle "◇ REL-01\nLicense 已确认？" as License #FCE4D6
 rectangle "人工发布门槛\nREL-02 已登录 Claude 实调用\nREL-03 独立干净 Windows VM" as Manual #FFF2CC
-rectangle "最终候选\nREL-04 release-check + CI\n版本 / commit / SHA 一致" as RC #D9EAF7
+rectangle "最终候选\nREL-04 release-check + Windows/Unix CI\n版本 / commit / SHA 一致" as RC #D9EAF7
 rectangle "正式公开发布\nREL-05 v0.1.0 tag + Release\nREL-06 回下载 / 公共安装复验" as Release #C6E0B4
-rectangle "P1 可用性与平台（约 3–4 天）\nshow --open → .afrignore → .afr.json\nUnix 进程组测试 + Linux/macOS beta" as P1 #D9EAF7
+rectangle "P1 可用性（约 2–3 天）\nshow --open → .afrignore → .afr.json" as P1 #D9EAF7
 rectangle "公开试用（事件驱动）\nR0-09：20 次真实会话\n本地记录价值、误报、缺口与开销" as Pilot #E4DFEC
 rectangle "◇ DEC-01\n是否有多个 session 证明\n同一缺口反复阻碍复核？" as DataGate #FCE4D6
 rectangle "保持 CLI + 薄插件\n修复具体缺陷并继续观察" as Maintain #E2F0D9

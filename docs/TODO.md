@@ -3,7 +3,7 @@
 > 与 [PROJECT_PLAN.md](./PROJECT_PLAN.md) 同步维护。任务只有在“验收”可重复通过后才能勾选。
 > 优先级：P0 发布阻塞；P1 正式可用增强；P2 有真实需求后再做。
 > 估算假设：1 名全职开发者，Windows x64 为 v0.1 发布平台。
-> 当前基线：v0.1 核心候选实现已合并到公开仓库；`M3-22` / `M3-23`、License、正式 tag / Release 和两项人工发布门槛尚未完成。
+> 当前基线：v0.1 核心候选、HTML 有界事件时间线、六行运行摘要和 Unix CI 证据已完成；License、正式 tag / Release 和两项人工发布门槛尚未完成。
 
 ## 0. 当前状态
 
@@ -25,12 +25,12 @@
 
 | 顺序 | 任务 | 当前阻塞 | 进入下一项的条件 |
 |---:|---|---|---|
-| 1 | `M3-22`、`M3-23` | 无 | HTML 时间线和六项运行摘要的测试通过 |
-| 2 | `REL-01` | 需要产品负责人选择 License | License 文件与文档一致；可与顺序 1 并行 |
+| 1 | ✅ `M3-22`、`M3-23` | 已完成 | 10 万事件测试、固定六行摘要和三平台 CI 已通过 |
+| 2 | `REL-01` | 需要产品负责人选择 License | License 文件与文档一致 |
 | 3 | `REL-02`、`REL-03` | 已登录 Claude 账户、独立干净 Windows VM | 两项人工证据写入发布检查表 |
-| 4 | `REL-04` | 顺序 1 和 3 | 最终 `main` commit 的 release-check、CI、版本和 SHA 一致 |
+| 4 | `REL-04` | 顺序 3 | 最终 `main` commit 的 release-check、CI、版本和 SHA 一致 |
 | 5 | `REL-05`、`REL-06` | `REL-01`、`REL-04` | 公开 Release 完成，回下载与公共安装复验通过 |
-| 6A | `M3-09` → `M1-11` → `M2-07` → `M0-15` / `R0-05` | `REL-06` 后启动；均为 P1 | 每项独立验收，不捆绑 hooks 或平台服务 |
+| 6A | `M3-09` → `M1-11` → `M2-07` | `REL-06` 后启动；均为 P1 | 每项独立验收，不捆绑 hooks 或平台服务 |
 | 6B | `R0-09` | `REL-06` 后与 6A 并行 | 完成 20 条本地真实会话评审；每条记录 version/commit，允许区分期间发布的补丁版 |
 | 7 | `DEC-01` | `R0-09` | 只选择一个有重复证据的方向，或明确保持现状 |
 
@@ -154,10 +154,10 @@
   - 依赖：M0-08。
   - 验收：child 创建孙进程后取消，孙进程不继续修改 fixture；若 stdlib 不足，记录引入 `x/sys/windows` 的唯一理由。
 
-- [ ] **M0-15 [P1] Unix process group 实现**
+- [x] **M0-15 [P1] Unix process group 实现**
   - 依赖：M0-13。
-  - 当前：`internal/process_unix.go` 已使用 `Setpgid` 并向负 PID 发送 SIGINT / SIGKILL；不能因已有代码直接勾选。
   - 验收：增加 `!windows` 孙进程终止测试，并在 Linux/macOS 冒烟中证明完整进程组终止；不阻塞 Windows v0.1.0。
+  - 结果：共享 `internal/process_tree_test.go` 在 Windows、Ubuntu、macOS 均验证孙进程随进程树终止；Unix CI 见 [run 29798685253](https://github.com/liao96312/agent-flight-recorder/actions/runs/29798685253)。
 
 - [x] **M0-16 [P0] 实现 torn-tail 只读检测**
   - 依赖：M0-06。
@@ -428,13 +428,15 @@
   - 依赖：M3-01 至 M3-08、M3-11 至 M3-20；P1 的 M3-09 / M3-10 不阻塞候选版。
   - 验收：自动化安全、压力、基准、Windows 构建和插件 package/lifecycle 检查可重复通过；未完成的人工门槛必须显式留在发布检查表，不得写成正式 Release 已完成。
 
-- [ ] **M3-22 [P0] 补齐 HTML 有界事件时间线**
+- [x] **M3-22 [P0] 补齐 HTML 有界事件时间线**
   - 依赖：M3-01、M3-04、M3-05、M3-06。
   - 验收：按 seq 展示时间、类型和最多 512 UTF-8 bytes 的已脱敏摘要；最多 1,000 个事件行，超过时确定性保留前 500 / 后 500，并显示 omitted 数量与 seq 区间；可筛选；truncated、binary、omitted 和 `not_observable` 不被隐藏。恶意 payload 仍只显示文本；10 万事件 fixture 断言事件行不超过 1,000 且首尾与 omission marker 正确。
+  - 结果：流式读取已脱敏 `events.jsonl`，10 万事件 fixture 与三平台 CI 通过。
 
-- [ ] **M3-23 [P0] 补齐 `run` 结束摘要**
+- [x] **M3-23 [P0] 补齐 `run` 结束摘要**
   - 依赖：M3-01、M3-02、M3-03。
   - 验收：完整收尾时在 stderr 固定输出六行：`Session: <id>`；`Evidence: observed=<排序 capability CSV>; not_observable=<排序 capability CSV>; truncated=<bool>`；`Changed: added=N modified=N deleted=N renamed=N pre_existing=N`；`Risks: total=N highest=<severity>`；`Exit: child=<code> state=<state>`；`Report: <绝对 report.html 路径>`。值与最终报告一致，不使用 L1/L2/L3；child stdout 逐字节不变，child stderr 不丢失；AFR 收尾失败仍保留稳定错误前缀和 session 路径。
+  - 结果：精确格式测试、`RunResult` 集成测试、WSL 实际 CLI 冒烟和三平台 CI 通过。
 
 ## 6. M4：原生 hook 适配（按真实需求，v0.2）
 
@@ -510,10 +512,10 @@
   - 依赖：组织证书与发布主体。
   - 验收：正式企业包签名可验证；未签测试包不伪装可信发布者。
 
-- [ ] **R0-05 [P1] Linux/macOS 同源编译冒烟**
+- [x] **R0-05 [P1] Linux/macOS 同源编译冒烟**
   - 依赖：M0-15、M3-21。
-  - 当前：Linux、macOS 交叉编译通过；缺目标 runner 上的测试和行为证据。
   - 验收：Ubuntu 与 macOS CI 上 go test/build、孙进程终止、最小 run/verify 通过；非 Windows 明确标 beta。
+  - 结果：Ubuntu 与 macOS 的 go test/build、孙进程终止、真实 run/verify 均通过；证据见 [run 29798685253](https://github.com/liao96312/agent-flight-recorder/actions/runs/29798685253)，非 Windows 仍标 beta。
 
 - [x] **R0-06 [P0] Schema 向后读取测试**
   - 依赖：M2-17、M3-15。
@@ -594,9 +596,9 @@ F0 契约
   -> M2 写盘前脱敏 + verify
   -> M3 候选报告/清理/Windows 包
   -> 薄 Codex + Claude Code 插件
-  -> M3-22 有界时间线 + M3-23 运行摘要
+  -> M3-22 有界时间线 + M3-23 运行摘要（已完成）
   -> REL-01..REL-06 正式 v0.1.0 发布
-      +-> [并行 A] P1 可用性 / Linux + macOS beta
+      +-> [并行 A] P1 可用性（show --open / ignore / 配置）
       +-> [并行 B] R0-09 二十次真实会话（逐条记录 version/commit）
                     -> DEC-01 单方向数据门
                         -> [仅证据触发] M4 hooks / 其他一个扩展方向

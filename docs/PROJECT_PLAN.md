@@ -86,12 +86,12 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 | 原方案或既有契约 | 当前实现 / 外部事实 | 处理 |
 |---|---|---|
 | 公开可安装的首版 | 仓库已公开，但没有 License、tag 或 GitHub Release | `REL-01` 至 `REL-06` 完成前只称 v0.1 候选版 |
-| 运行结束输出 Session、Evidence、Changed、Risks、Exit、Report | 当前只输出 session ID 和目录 | `M3-23 [P0]` 在正式发布前补齐，保持 child stdout 不受污染 |
-| HTML 提供可筛选的完整时间线 | 当前 HTML 有安全外壳、输出预览、事件计数、风险和文件列表，但没有逐事件时间线 | `M3-22 [P0]` 增加有界、已脱敏的 seq 时间线 |
+| 运行结束输出 Session、Evidence、Changed、Risks、Exit、Report | 已固定输出六行 stderr 摘要，child stdout 不受污染 | `M3-23 [P0]` 已完成并通过三平台 CI |
+| HTML 提供可筛选的完整时间线 | 已提供有界、已脱敏的 seq 时间线，最多 1,000 行 | `M3-22 [P0]` 已完成；10 万事件 fixture 通过 |
 | 一条命令定位并打开报告 | `show` 可定位报告，但解析器明确拒绝 `--open` | `M3-09 [P1]`，不阻塞 v0.1.0 发布 |
 | 非 Git 扫描支持有限 `.afrignore` | 当前只固定跳过 `.git`，未加载 `.afrignore` | `M1-11 [P1]`，先冻结有限 glob，不冒充完整 gitignore |
 | workspace `.afr.json` 可添加 RE2 脱敏规则 | 当前只有内置 detector，没有配置加载 | `M2-07 [P1]`，无效规则必须在 child 启动前失败 |
-| Unix 终止整个进程组并提供 Linux/macOS 版本 | `Setpgid` 和负 PID 信号已经实现，交叉编译通过；缺孙进程测试和两平台 CI 的 run/verify | `M0-15` 与 `R0-05` 作为一组验收 |
+| Unix 终止整个进程组并提供 Linux/macOS 版本 | 共享孙进程测试及 Ubuntu/macOS 的 go test/build/run/verify 已通过 | `M0-15` 与 `R0-05` 已完成；非 Windows 仍标 beta |
 | `afr report` 可重建派生报告 | 当前只在 `run` 收尾自动生成报告 | `M3-10` 降为 P2；20 次评审证明需要重建时再做 |
 | replay、原生 hooks、Dify / 团队分析 | 均未实现 | 保持暂缓；只能由 `DEC-01` 的真实数据启动，不因原方案列出就提前建设 |
 
@@ -344,7 +344,7 @@ afr version
 ### 7.2 流与退出码
 
 - child stdout 原样实时写到 AFR stdout；child stderr 原样实时写到 AFR stderr。
-- AFR 的会话摘要写 stderr，避免污染 child 的机器可读 stdout；当前候选版只输出 session ID / 目录，`M3-23` 将在正式发布前补齐固定的人类摘要字段。
+- AFR 的会话摘要写 stderr，避免污染 child 的机器可读 stdout；当前候选版已固定输出 Session/Evidence/Changed/Risks/Exit/Report 六行摘要。
 - v0.1 不提供 `--summary-json`；如果真实脚本消费需求出现，先冻结 schema 和输出路径再新增。
 - `run` 在记录器完整收尾时透传 child exit code。
 - 记录器在启动 child 前失败时返回保留的 AFR 错误码，并且打印稳定错误类别。
@@ -355,7 +355,7 @@ afr version
 
 | 场景 | 退出码 | stdout | stderr 前缀/内容 |
 | --- | ---: | --- | --- |
-| `run` 完整收尾 | child 原退出码（0–255） | child stdout 原样 | child stderr 原样；正式发布目标在末尾写 Session/Evidence/Changed/Risks/Exit/Report 摘要（`M3-23`） |
+| `run` 完整收尾 | child 原退出码（0–255） | child stdout 原样 | child stderr 原样，并在末尾写 Session/Evidence/Changed/Risks/Exit/Report 六行摘要 |
 | child 启动前或 AFR 收尾失败 | 70 | 已产生的 child stdout（若有） | `AFR_RUNTIME:`；已分配 session 时追加其目录 |
 | CLI 用法错误 | 64 | 空 | `AFR_USAGE:` |
 | `verify` 通过 | 0 | 文本或 `--json` 结果 | 空 |
@@ -445,7 +445,7 @@ v0.1 的 `workspace.bulk_change` 规则版本为 1，本次 session delta 达到
 
 - `agent-flight.md`：短摘要，适合评审和工单。
 - `agent-risk.json`：稳定、版本化的机器输出。
-- `report.html`：当前候选版提供事件计数、输出预览、风险和文件筛选；`M3-22` 在正式发布前补齐按 seq 排序的有界事件时间线。
+- `report.html`：提供事件计数、输出预览、风险、文件筛选和按 seq 排序的有界事件时间线。
 
 ### 10.2 安全和容量
 
@@ -555,12 +555,12 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 | 阶段 | 当前状态 | 后续投入 | 范围 | 退出门槛 |
 |---|---|---:|---|---|
 | Phase 0 契约冻结 | 已完成 | 0 | 威胁模型、能力矩阵、事件/manifest、CLI、退出码、fixture | 关键 JSON 示例和黄金哈希向量评审通过 |
-| M0 记录闭环 | Windows 已完成；Unix 待验收 | P1 约 1 天 | run、会话、输出泵、退出/取消、incomplete、进程树 | Windows 路径通过；Unix 由 `M0-15` 收口 |
+| M0 记录闭环 | 已完成并通过三平台 CI | 0 | run、会话、输出泵、退出/取消、incomplete、进程树 | Windows、Ubuntu、macOS 路径均通过 |
 | M1 工作区证据 | 核心已完成 | P1 约 1 天 | Git before/after/delta、非 Git 扫描、容量预算 | `.afrignore` 由 `M1-11` 补齐 |
 | M2 安全证据 | 核心已完成 | P1 约 1 天 | 统一脱敏、规则、哈希链、manifest、verify | workspace 自定义 RE2 由 `M2-07` 补齐 |
-| M3 候选版 | 候选代码与制品已合并 | P0 约 1–2 天 | 报告、CLI、Windows 包、薄插件 | `M3-22`、`M3-23` 通过，且不回退既有安全门槛 |
+| M3 候选版 | 候选代码、报告时间线和运行摘要已完成 | 0 | 报告、CLI、Windows 包、薄插件 | `M3-22`、`M3-23` 与既有安全门槛均通过 |
 | R0 正式发布 | 未完成 | P0 约 1 天 + 两项人工/外部门槛 | License、Claude 实调用、干净 VM、tag、Release、回下载 | `REL-01` 至 `REL-06` 全部有证据 |
-| P1 可用性与平台 | 未开始 | 约 3–4 天 | `show --open`、ignore、自定义 RE2、Linux/macOS beta | 每项独立测试与文档通过，不捆绑大版本 |
+| P1 可用性 | 未开始 | 约 2–3 天 | `show --open`、ignore、自定义 RE2 | 每项独立测试与文档通过，不捆绑大版本 |
 | OBS 公开试用 | 未开始 | 事件驱动，直到 20 次 | 真实 Codex/Claude 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
 | DEC 数据门 | 未开始 | 半天 | 对证据缺口、性能、复核价值做决策 | `DEC-01` 明确“只做一个方向”或“保持现状” |
 | M4 原生 hooks | 条件性暂缓 | 触发后约 1–2 周 | `afr hook`、并发锁、宿主事件映射 | 只有 `DEC-01` 证明 wrapper 语义缺口反复阻碍复核才启动 |
@@ -580,12 +580,12 @@ M1 结束时必须能稳定回答：
 
 | 顺序 | TODO | 可并行性 | 完成定义 |
 |---:|---|---|---|
-| 1 | `M3-22` HTML 有界事件时间线；`M3-23` 完整运行摘要 | 两项可并行；不依赖外部账号 | 时间线最多 1,000 行（前后各 500、每行摘要 512 UTF-8 bytes、显式 omission）；摘要使用 capability vector 与固定六行格式；child stdout 不污染 |
-| 2 | `REL-01` License 决策 | 可与顺序 1 并行；需要产品负责人明确选择 | 仓库根 License、README / 发布说明表述一致；未选择则不得创建 Release |
+| 1 | ✅ `M3-22` HTML 有界事件时间线；`M3-23` 完整运行摘要 | 已完成 | 10 万事件 fixture、固定六行摘要、child stdout 不污染和三平台 CI 均通过 |
+| 2 | `REL-01` License 决策 | 需要产品负责人明确选择 | 仓库根 License、README / 发布说明表述一致；未选择则不得创建 Release |
 | 3 | `REL-02` 已登录 Claude `/afr:afr`；`REL-03` 独立干净 Windows VM | 两项可并行；均保留机器、版本、命令、session / checksum 证据 | Claude 调用同一 CLI 并 verify；VM 从候选 artifact 完成 version/list 和错误提示检查 |
-| 4 | `REL-04` 最终候选检查 | 依赖顺序 1 和 3 | 从最终 `main` commit 运行完整 release-check，CI、版本、SHA-256 和 release notes 指向同一 commit |
+| 4 | `REL-04` 最终候选检查 | 依赖顺序 3 | 从最终 `main` commit 运行完整 release-check，CI、版本、SHA-256 和 release notes 指向同一 commit |
 | 5 | `REL-05` tag + GitHub Release；`REL-06` 回下载 / 公共安装复验 | 严格串行 | 公开附件可下载、校验一致、快速开始能从零复现 |
-| 6A | `M3-09`、`M1-11`、`M2-07`、`M0-15 + R0-05` | `REL-06` 后逐项交付；与 6B 并行，每项可单独发布补丁版 | 分别通过浏览器打开、ignore、配置失败和 Unix 进程组/CI 验收 |
+| 6A | `M3-09`、`M1-11`、`M2-07` | `REL-06` 后逐项交付；与 6B 并行，每项可单独发布补丁版 | 分别通过浏览器打开、ignore 和配置失败验收 |
 | 6B | `R0-09` 20 次真实会话 | `REL-06` 后立即开始，与 6A 并行；不建设遥测 | 每次记录 version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿，可区分期间的补丁版 |
 | 7 | `DEC-01` 数据门 | 依赖完整 20 次记录，不依赖 6A 全部完成 | 形成 ADR：只启动一个证据最强的方向，或明确保持 wrapper；不得一次启动 hooks、Dify、索引和签名 |
 
