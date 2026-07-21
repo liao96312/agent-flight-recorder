@@ -63,7 +63,7 @@
   - 依赖：F0-09。
   - 验收：CLI flags > workspace `.afr.json` > defaults；未实现的用户/组织层不出现在规范中。
 
-- [ ] **F0-12 [P0] 建立黄金向量**
+- [x] **F0-12 [P0] 建立黄金向量**
   - 依赖：F0-06、F0-07、F0-08。
   - 验收：固定事件 body、hash、manifest、risk、redaction 输出可在任何构建中逐字节复现。
 
