@@ -38,7 +38,7 @@
 | 开源许可证 | 产品负责人于 2026-07-21 选择 MIT | `REL-01` 已完成；根 License、README、插件 manifest 与 release notes 一致 |
 | 产品正式名称 | 已固定为 Agent Flight Recorder / `afr` | 仅在品牌冲突时重开 |
 | 首个验收 Agent | `codex exec` 已完成真实包装与 verify 冒烟 | 每次正式发布复验 |
-| Claude Code 验收 | strict validator、加载和生命周期已通过；已登录账户的 `/afr:afr` 实调用仍缺 | `REL-02` |
+| Claude Code 验收 | strict validator、加载、生命周期及 OpenRouter 认证的 `/afr:afr` 实调用已通过 | `REL-02` 已完成；免费子模型输出质量不作为 AFR 功能断言 |
 | 会话保留 | 不后台删除；文档可建议 30 天，实际删除必须显式运行 `clean` 并给出条件 | 20 次真实会话后复盘 |
 | 插件 hooks | 明确不进入 v0.1；只有 20 次会话评审证明 wrapper 的语义缺口反复阻碍复核才启动 | `DEC-01` |
 
@@ -144,7 +144,7 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 - `session.json`、`events.jsonl`、`manifest.json`
 - `agent-flight.md`、`agent-risk.json`、`report.html`
 - incomplete 会话的只读复核
-- 一个共享薄插件包；Codex 真实包装冒烟和 Claude Code 本地 validator / loader 已完成，Claude 已登录实调用进入正式发布门槛
+- 一个共享薄插件包；Codex 真实包装冒烟与 Claude Code validator、loader、兼容 API provider 认证的真实 `/afr:afr` 冒烟均已完成
 
 ### 4.2 候选版后续增强，不阻塞 v0.1.0 发布
 
@@ -478,7 +478,7 @@ skill 只做四件事：
 
 两种宿主都要单独跑本地加载和调用冒烟；若任一宿主不能容忍同一根目录中的另一个 manifest，再拆成两个发布包，不提前维护两套业务代码。
 
-候选版实测状态：Codex marketplace 发现、安装、真实 `afr run -- codex exec ...` 和 session verify 已通过；Claude Code strict validator、`--plugin-dir` 与插件生命周期已通过，但本机未登录，因此 `/afr:afr` 调用同一 `afr` 的端到端证据归入 `REL-02`，未通过前不能写成双宿主正式发布完成。
+候选版实测状态：Codex marketplace 发现、安装、真实 `afr run -- codex exec ...` 和 session verify 已通过；Claude Code strict validator、`--plugin-dir`、插件生命周期及 OpenRouter Anthropic-compatible API 认证下的 `/afr:afr` 调用同一 `afr` 均已通过。Claude session `20260722T014003.862517200Z-9a4b7bb5330396fc02df94db` 为 completed/exit 0、工作区改动 0，verify 为 7 events / 6 evidence / 3 derived。免费子模型未遵循精确短语要求，只记录为模型质量现象，不影响宿主、插件、进程和证据链路验收。
 
 ### 11.2 v0.2：hook 原生事件
 
@@ -544,7 +544,7 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 - `clean` 在伪造目录、symlink/junction、活跃会话和非 TTY 下不越界。
 - HTML 在浏览器中无外部请求，恶意内容不执行。
 - Windows 干净 VM 只放 `afr.exe` 后可运行；外部 Git/Agent 前置有明确错误提示。
-- 已登录 Claude Code 账户实际调用 `/afr:afr`，确认使用同一 `afr`、生成 session 且 `verify` 通过；validator 不能替代该人工门槛。
+- 使用 Claude Code 账户或兼容 API provider 认证实际调用 `/afr:afr`，确认使用同一 `afr`、生成 session 且 `verify` 通过；validator 不能替代该真实调用门槛。
 - 发布前明确 License，最终 `main` commit 的测试、CI、版本号和 SHA-256 一致；创建不可变 `v0.1.0` tag 与公开 GitHub Release。
 - 从公开 Release 重新下载附件复算校验和，并在独立目录完成 `version`、`list --json` 与插件安装文档冒烟。
 
@@ -582,14 +582,14 @@ M1 结束时必须能稳定回答：
 |---:|---|---|---|
 | 1 | ✅ `M3-22` HTML 有界事件时间线；`M3-23` 完整运行摘要 | 已完成 | 10 万事件 fixture、固定六行摘要、child stdout 不污染和三平台 CI 均通过 |
 | 2 | ✅ `REL-01` MIT License | 已完成 | 根 License、README、插件 manifest 与发布说明一致 |
-| 3 | ⏸ `REL-02` 已登录 Claude `/afr:afr`；`REL-03` 独立干净 Windows VM | 产品负责人于 2026-07-22 暂时搁置 | 保持未完成，不用 validator、CI 或开发机替代人工证据 |
+| 3 | ✅ `REL-02` Claude `/afr:afr`；⏸ `REL-03` 独立干净 Windows VM | Claude 实调用已完成；产品负责人此前暂停 VM | 保留 `REL-03` 独立环境证据，不用 validator、CI 或开发机替代 |
 | 4 | ✅ `M3-09`、`M1-11`、`M2-07` | 发布门槛暂停期间已逐项完成；每项单独提交 | 浏览器打开、ignore 和配置失败验收及三平台 CI 分别通过 |
 | 5 | `REL-04` 最终候选检查 | 依赖顺序 3 恢复并完成 | 从最终 `main` commit 运行完整 release-check，CI、版本、SHA-256 和 release notes 指向同一 commit |
 | 6 | `REL-05` tag + GitHub Release；`REL-06` 回下载 / 公共安装复验 | 严格串行 | 公开附件可下载、校验一致、快速开始能从零复现 |
 | 7 | `R0-09` 20 次真实会话 | `REL-06` 后立即开始；不建设遥测 | 每次记录 version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿，可区分期间的补丁版 |
 | 8 | `DEC-01` 数据门 | 依赖完整 20 次记录 | 形成 ADR：只启动一个证据最强的方向，或明确保持 wrapper；不得一次启动 hooks、Dify、索引和签名 |
 
-宿主登录等待期间不跳过门槛，也不得在人工验收未通过时提前打正式 tag。
+独立环境等外部门槛等待期间不得用 CI 或开发机证据替代，也不得在人工验收未通过时提前打正式 tag。
 
 ## 14. 发布与运维
 

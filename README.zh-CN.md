@@ -174,4 +174,4 @@ docs/         计划、TODO、架构、安全、快速开始与发布检查表
 
 ## 当前状态
 
-v0.1 候选版现已包含 HTML 有界事件时间线、固定六行运行摘要，通过 Windows/Ubuntu/macOS CI，并采用 [MIT License](LICENSE)，但尚未正式发布。剩余门槛是已登录 Claude 冒烟、干净 VM 验证、最终候选一致性检查、公开 tag/Release 与回下载验证。Windows x64 仍是发布制品，Ubuntu 和 macOS 为 beta；原生 hooks 和更大的平台能力继续由真实数据门控制。
+v0.1 候选版现已包含 HTML 有界事件时间线、固定六行运行摘要，通过 Windows/Ubuntu/macOS CI，采用 [MIT License](LICENSE)，并已通过兼容 API provider 认证的 Claude Code `/afr:afr` 真实冒烟，但尚未正式发布。剩余门槛是干净 VM 验证、最终候选一致性检查、公开 tag/Release 与回下载验证。Windows x64 仍是发布制品，Ubuntu 和 macOS 为 beta；原生 hooks 和更大的平台能力继续由真实数据门控制。
