@@ -89,7 +89,7 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 | 运行结束输出 Session、Evidence、Changed、Risks、Exit、Report | 已固定输出六行 stderr 摘要，child stdout 不受污染 | `M3-23 [P0]` 已完成并通过三平台 CI |
 | HTML 提供可筛选的完整时间线 | 已提供有界、已脱敏的 seq 时间线，最多 1,000 行 | `M3-22 [P0]` 已完成；10 万事件 fixture 通过 |
 | 一条命令定位并打开报告 | `show --open` 已通过独立 argv 调用平台原生打开命令 | `M3-09 [P1]` 已完成，不阻塞 v0.1.0 发布 |
-| 非 Git 扫描支持有限 `.afrignore` | 当前只固定跳过 `.git`，未加载 `.afrignore` | `M1-11 [P1]`，先冻结有限 glob，不冒充完整 gitignore |
+| 非 Git 扫描支持有限 `.afrignore` | 根配置在 child 启动前加载一次，支持路径前缀和 Go `path.Match` | `M1-11 [P1]` 已完成，明确不冒充完整 gitignore |
 | workspace `.afr.json` 可添加 RE2 脱敏规则 | 当前只有内置 detector，没有配置加载 | `M2-07 [P1]`，无效规则必须在 child 启动前失败 |
 | Unix 终止整个进程组并提供 Linux/macOS 版本 | 共享孙进程测试及 Ubuntu/macOS 的 go test/build/run/verify 已通过 | `M0-15` 与 `R0-05` 已完成；非 Windows 仍标 beta |
 | `afr report` 可重建派生报告 | 当前只在 `run` 收尾自动生成报告 | `M3-10` 降为 P2；20 次评审证明需要重建时再做 |
@@ -390,7 +390,7 @@ child 自身返回 2、64 或 70 时仍属于“完整收尾”，脚本通过 s
 
 - 只扫描工作区真实路径之内，不跟随 symlink/junction/reparse point。
 - 记录相对路径、类型、大小、mtime 和会话级 HMAC 内容指纹；默认不输出可被字典枚举的裸内容哈希。
-- 当前候选版固定跳过 `.git`，尚未读取 `.afrignore`；`M1-11` 将增加文档化的有限 glob，且不声称完全兼容 `.gitignore`。
+- 固定跳过 `.git`；工作区根 `.afrignore` 支持注释、空行、路径前缀和 Go `path.Match` glob，Windows 分隔符先统一为 `/`。非法模式在 child 启动前失败；不支持 negation、递归 `**` 或父目录发现，不声称兼容完整 `.gitignore`。
 - 配置时间、文件数和读取字节预算；超限后输出 `partial` 与遗漏原因。
 - 权限拒绝、循环链接、路径消失都生成可见事件。
 
@@ -556,11 +556,11 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 |---|---|---:|---|---|
 | Phase 0 契约冻结 | 已完成 | 0 | 威胁模型、能力矩阵、事件/manifest、CLI、退出码、fixture | 关键 JSON 示例和黄金哈希向量评审通过 |
 | M0 记录闭环 | 已完成并通过三平台 CI | 0 | run、会话、输出泵、退出/取消、incomplete、进程树 | Windows、Ubuntu、macOS 路径均通过 |
-| M1 工作区证据 | 核心已完成 | P1 约 1 天 | Git before/after/delta、非 Git 扫描、容量预算 | `.afrignore` 由 `M1-11` 补齐 |
+| M1 工作区证据 | 已完成 | 0 | Git before/after/delta、非 Git 扫描、容量预算、有限 `.afrignore` | P0 与 `M1-11` 验收均通过 |
 | M2 安全证据 | 核心已完成 | P1 约 1 天 | 统一脱敏、规则、哈希链、manifest、verify | workspace 自定义 RE2 由 `M2-07` 补齐 |
 | M3 候选版 | 候选代码、报告时间线和运行摘要已完成 | 0 | 报告、CLI、Windows 包、薄插件 | `M3-22`、`M3-23` 与既有安全门槛均通过 |
 | R0 正式发布 | 未完成 | P0 约 1 天 + 两项人工/外部门槛 | License、Claude 实调用、干净 VM、tag、Release、回下载 | `REL-01` 至 `REL-06` 全部有证据 |
-| P1 可用性 | 进行中（`show --open` 已完成） | 约 2–3 天 | `show --open`、ignore、自定义 RE2 | 每项独立测试与文档通过，不捆绑大版本 |
+| P1 可用性 | 进行中（open、ignore 已完成） | 约 1 天 | `show --open`、ignore、自定义 RE2 | 每项独立测试与文档通过，不捆绑大版本 |
 | OBS 公开试用 | 未开始 | 事件驱动，直到 20 次 | 真实 Codex/Claude 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
 | DEC 数据门 | 未开始 | 半天 | 对证据缺口、性能、复核价值做决策 | `DEC-01` 明确“只做一个方向”或“保持现状” |
 | M4 原生 hooks | 条件性暂缓 | 触发后约 1–2 周 | `afr hook`、并发锁、宿主事件映射 | 只有 `DEC-01` 证明 wrapper 语义缺口反复阻碍复核才启动 |

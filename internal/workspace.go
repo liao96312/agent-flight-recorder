@@ -142,6 +142,19 @@ func (fingerprinter *Fingerprinter) NewHash() hash.Hash {
 }
 
 func CollectWorkspace(root, excludedRoot string, fingerprinter *Fingerprinter, limits ScanLimits) WorkspaceSnapshot {
+	ignore, err := loadAFRIgnore(root)
+	if err != nil {
+		snapshot := collectWorkspace(root, excludedRoot, fingerprinter, limits, afrIgnore{})
+		snapshot.Partial = true
+		snapshot.Omissions = append(snapshot.Omissions, "afrignore_invalid")
+		sort.Strings(snapshot.Omissions)
+		snapshot.Omissions = compactStrings(snapshot.Omissions)
+		return snapshot
+	}
+	return collectWorkspace(root, excludedRoot, fingerprinter, limits, ignore)
+}
+
+func collectWorkspace(root, excludedRoot string, fingerprinter *Fingerprinter, limits ScanLimits, ignore afrIgnore) WorkspaceSnapshot {
 	started := time.Now()
 	if limits.MaxFiles <= 0 {
 		limits.MaxFiles = defaultScanFiles
@@ -188,6 +201,12 @@ func CollectWorkspace(root, excludedRoot string, fingerprinter *Fingerprinter, l
 			return nil
 		}
 		if relative == "." {
+			return nil
+		}
+		if ignore.matches(relative) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if entry.IsDir() {

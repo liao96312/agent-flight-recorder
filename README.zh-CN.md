@@ -92,6 +92,19 @@ $afr = '.\dist\afr-windows-amd64.exe'
 
 完整复制流程见 [5 分钟快速开始](docs/QUICKSTART.md)。
 
+### 从工作区扫描中排除文件
+
+如果生成目录或大文件不应进入 AFR 文件系统快照，请在工作区根目录添加 `.afrignore`：
+
+```text
+# 注释和空行会被忽略
+vendor/
+*.log
+generated/*.tmp
+```
+
+普通路径是相对工作区根目录的路径前缀。包含 `*`、`?` 或 `[` 的模式在把 `\` 统一为 `/` 后使用 Go `path.Match` 规则，因此 `*.log` 只匹配工作区根目录。非法模式会在 child 启动前终止 `afr run`。这不是完整 `.gitignore`：不支持取反、递归 `**` 或向父目录查找配置。
+
 ## Codex 与 Claude Code 插件
 
 共享插件根位于 [`plugins/afr`](plugins/afr)。它会检查本地 CLI、启动一个**新的被记录任务**，并帮助查看或校验已有 session；它不能追溯当前对话。
