@@ -88,14 +88,14 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 | 公开可安装的首版 | 仓库已公开并采用 MIT，但没有 tag 或 GitHub Release | `REL-02` 至 `REL-06` 完成前只称 v0.1 候选版 |
 | 运行结束输出 Session、Evidence、Changed、Risks、Exit、Report | 已固定输出六行 stderr 摘要，child stdout 不受污染 | `M3-23 [P0]` 已完成并通过三平台 CI |
 | HTML 提供可筛选的完整时间线 | 已提供有界、已脱敏的 seq 时间线，最多 1,000 行 | `M3-22 [P0]` 已完成；10 万事件 fixture 通过 |
-| 一条命令定位并打开报告 | `show` 可定位报告，但解析器明确拒绝 `--open` | `M3-09 [P1]`，不阻塞 v0.1.0 发布 |
+| 一条命令定位并打开报告 | `show --open` 已通过独立 argv 调用平台原生打开命令 | `M3-09 [P1]` 已完成，不阻塞 v0.1.0 发布 |
 | 非 Git 扫描支持有限 `.afrignore` | 当前只固定跳过 `.git`，未加载 `.afrignore` | `M1-11 [P1]`，先冻结有限 glob，不冒充完整 gitignore |
 | workspace `.afr.json` 可添加 RE2 脱敏规则 | 当前只有内置 detector，没有配置加载 | `M2-07 [P1]`，无效规则必须在 child 启动前失败 |
 | Unix 终止整个进程组并提供 Linux/macOS 版本 | 共享孙进程测试及 Ubuntu/macOS 的 go test/build/run/verify 已通过 | `M0-15` 与 `R0-05` 已完成；非 Windows 仍标 beta |
 | `afr report` 可重建派生报告 | 当前只在 `run` 收尾自动生成报告 | `M3-10` 降为 P2；20 次评审证明需要重建时再做 |
 | replay、原生 hooks、Dify / 团队分析 | 均未实现 | 保持暂缓；只能由 `DEC-01` 的真实数据启动，不因原方案列出就提前建设 |
 
-本轮同时删除两个过期承诺：v0.1 当前命令面不含 `show --open`，也没有未进入实现和 TODO 的 `--summary-json`。原方案的“证据等级”继续按能力矩阵表达；`verify.json`、自动 replay、OS 级文件/网络观测仍不伪装为已交付。
+本轮删除未进入实现和 TODO 的 `--summary-json` 过期承诺；`show --open` 不属于 v0.1 发布门槛，后续已作为独立 P1 交付。原方案的“证据等级”继续按能力矩阵表达；`verify.json`、自动 replay、OS 级文件/网络观测仍不伪装为已交付。
 
 ## 3. 推荐产品形态
 
@@ -320,13 +320,13 @@ hash = SHA256("AFR-EVENT-v1\n" || prev_hash_bytes || "\n" || exact_body_bytes)
 ```text
 afr run [--workspace PATH] -- COMMAND [ARG...]
 afr list [--limit N] [--json]
-afr show [--json] [SESSION|latest]
+afr show [--json|--open] [SESSION|latest]
 afr verify [--json] [SESSION|latest]
 afr clean (--older-than DURATION | --max-bytes SIZE) [--yes]
 afr version
 ```
 
-`show --open` 是 P1 候选而不是当前契约。`report` 和 `replay` 不进入首个必需命令面：自动报告已经覆盖日常路径；有证据证明需要重建时再加入 `report`。
+`show --open` 已作为 P1 可用性命令交付。`report` 和 `replay` 不进入首个必需命令面：自动报告已经覆盖日常路径；有证据证明需要重建时再加入 `report`。
 
 冻结的 v0.1 解析契约如下；`[]` 表示可选，命令名和 flag 区分大小写：
 
@@ -334,7 +334,7 @@ afr version
 | --- | --- | --- |
 | `run [--workspace PATH] -- COMMAND [ARG...]` | workspace 为当前目录；第一个独立 `--` 是 AFR 与 child argv 的唯一边界，之后的空格、引号、Unicode 和前导短横线逐项原样传递 | 缺少 `--`、空 command、未知 AFR flag |
 | `list [--limit N] [--json]` | limit=20，按 session ID 倒序；N 必须大于 0 | 多余位置参数、非法 N |
-| `show [--json] [SESSION\|latest]` | selector 默认为 `latest`；完整 ID 或唯一前缀；非 JSON 模式读取 Markdown 摘要 | selector 歧义、额外参数、当前传入 `--open` |
+| `show [--json\|--open] [SESSION\|latest]` | selector 默认为 `latest`；非 JSON 模式读取 Markdown 摘要；`--open` 输出绝对 HTML 路径后调用平台原生命令 | selector 歧义、额外参数、同时传入 `--json` 与 `--open` |
 | `verify [--json] [SESSION\|latest]` | selector 默认为 `latest`；只读，不修复证据；`--json` 也兼容放在 selector 后 | 多个 selector、未知 flag |
 | `clean (--older-than DURATION \| --max-bytes SIZE) [--yes]` | 恰好一个选择条件；默认只预览；非 TTY 删除必须显式 `--yes` | 无条件、双条件、非法 duration/size |
 | `version` | 无参数，写 stdout | 任意额外参数 |
@@ -560,7 +560,7 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 | M2 安全证据 | 核心已完成 | P1 约 1 天 | 统一脱敏、规则、哈希链、manifest、verify | workspace 自定义 RE2 由 `M2-07` 补齐 |
 | M3 候选版 | 候选代码、报告时间线和运行摘要已完成 | 0 | 报告、CLI、Windows 包、薄插件 | `M3-22`、`M3-23` 与既有安全门槛均通过 |
 | R0 正式发布 | 未完成 | P0 约 1 天 + 两项人工/外部门槛 | License、Claude 实调用、干净 VM、tag、Release、回下载 | `REL-01` 至 `REL-06` 全部有证据 |
-| P1 可用性 | 未开始 | 约 2–3 天 | `show --open`、ignore、自定义 RE2 | 每项独立测试与文档通过，不捆绑大版本 |
+| P1 可用性 | 进行中（`show --open` 已完成） | 约 2–3 天 | `show --open`、ignore、自定义 RE2 | 每项独立测试与文档通过，不捆绑大版本 |
 | OBS 公开试用 | 未开始 | 事件驱动，直到 20 次 | 真实 Codex/Claude 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
 | DEC 数据门 | 未开始 | 半天 | 对证据缺口、性能、复核价值做决策 | `DEC-01` 明确“只做一个方向”或“保持现状” |
 | M4 原生 hooks | 条件性暂缓 | 触发后约 1–2 周 | `afr hook`、并发锁、宿主事件映射 | 只有 `DEC-01` 证明 wrapper 语义缺口反复阻碍复核才启动 |
@@ -582,12 +582,12 @@ M1 结束时必须能稳定回答：
 |---:|---|---|---|
 | 1 | ✅ `M3-22` HTML 有界事件时间线；`M3-23` 完整运行摘要 | 已完成 | 10 万事件 fixture、固定六行摘要、child stdout 不污染和三平台 CI 均通过 |
 | 2 | ✅ `REL-01` MIT License | 已完成 | 根 License、README、插件 manifest 与发布说明一致 |
-| 3 | `REL-02` 已登录 Claude `/afr:afr`；`REL-03` 独立干净 Windows VM | 两项可并行；均保留机器、版本、命令、session / checksum 证据 | Claude 调用同一 CLI 并 verify；VM 从候选 artifact 完成 version/list 和错误提示检查 |
-| 4 | `REL-04` 最终候选检查 | 依赖顺序 3 | 从最终 `main` commit 运行完整 release-check，CI、版本、SHA-256 和 release notes 指向同一 commit |
-| 5 | `REL-05` tag + GitHub Release；`REL-06` 回下载 / 公共安装复验 | 严格串行 | 公开附件可下载、校验一致、快速开始能从零复现 |
-| 6A | `M3-09`、`M1-11`、`M2-07` | `REL-06` 后逐项交付；与 6B 并行，每项可单独发布补丁版 | 分别通过浏览器打开、ignore 和配置失败验收 |
-| 6B | `R0-09` 20 次真实会话 | `REL-06` 后立即开始，与 6A 并行；不建设遥测 | 每次记录 version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿，可区分期间的补丁版 |
-| 7 | `DEC-01` 数据门 | 依赖完整 20 次记录，不依赖 6A 全部完成 | 形成 ADR：只启动一个证据最强的方向，或明确保持 wrapper；不得一次启动 hooks、Dify、索引和签名 |
+| 3 | ⏸ `REL-02` 已登录 Claude `/afr:afr`；`REL-03` 独立干净 Windows VM | 产品负责人于 2026-07-22 暂时搁置 | 保持未完成，不用 validator、CI 或开发机替代人工证据 |
+| 4 | `M3-09`、`M1-11`、`M2-07` | 发布门槛暂停期间逐项提前；每项单独提交 | 分别通过浏览器打开、ignore 和配置失败验收 |
+| 5 | `REL-04` 最终候选检查 | 依赖顺序 3 恢复并完成 | 从最终 `main` commit 运行完整 release-check，CI、版本、SHA-256 和 release notes 指向同一 commit |
+| 6 | `REL-05` tag + GitHub Release；`REL-06` 回下载 / 公共安装复验 | 严格串行 | 公开附件可下载、校验一致、快速开始能从零复现 |
+| 7 | `R0-09` 20 次真实会话 | `REL-06` 后立即开始；不建设遥测 | 每次记录 version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿，可区分期间的补丁版 |
+| 8 | `DEC-01` 数据门 | 依赖完整 20 次记录 | 形成 ADR：只启动一个证据最强的方向，或明确保持 wrapper；不得一次启动 hooks、Dify、索引和签名 |
 
 宿主登录等待期间不跳过门槛，也不得在人工验收未通过时提前打正式 tag。
 

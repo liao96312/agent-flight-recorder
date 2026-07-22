@@ -33,6 +33,7 @@ Do not add approval-bypass or sandbox-bypass flags unless the user explicitly re
 
 ```text
 afr show latest
+afr show --open latest
 afr verify latest
 ```
 
@@ -41,7 +42,7 @@ Use `afr show --json latest` or `afr verify --json latest` when structured outpu
 ## Inspect and clean sessions
 
 - List sessions with `afr list`; add `--json` only for machine-readable output.
-- Show one session with `afr show <session-id>` or `afr show latest`.
+- Show one session with `afr show <session-id>` or `afr show latest`; add `--open` to open its local HTML report.
 - Verify integrity with `afr verify <session-id>` or `afr verify latest`.
 - Preview retention targets first with `afr clean --older-than 30d` or `afr clean --max-bytes <size>`.
 - Delete only after explicit user confirmation, using the same command plus `--yes`.

@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -109,7 +110,7 @@ func verifyCommand(args []string) int {
 }
 
 func showCommand(args []string) int {
-	asJSON, selector, err := parseJSONSelector("show", args)
+	asJSON, openReport, selector, err := parseShowSelector(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "AFR_USAGE: %v\n", err)
 		return exitUsage
@@ -138,6 +139,13 @@ func showCommand(args []string) int {
 		}
 		return 0
 	}
+	if openReport {
+		if err := openReportFile(result.HTMLPath, os.Stdout); err != nil {
+			fmt.Fprintf(os.Stderr, "AFR_RUNTIME: %v\n", err)
+			return exitAFR
+		}
+		return 0
+	}
 	if report, err := afr.ReadMarkdownReport(result.MarkdownPath); err == nil {
 		_, _ = os.Stdout.Write(report)
 		return 0
@@ -150,6 +158,45 @@ func showCommand(args []string) int {
 		fmt.Printf("Torn tail: %d bytes\n", result.Session.TornTailBytes)
 	}
 	return 0
+}
+
+func openReportFile(path string, output io.Writer) error {
+	if path == "" {
+		return errors.New("HTML report is unavailable")
+	}
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("resolve report path: %w", err)
+	}
+	if _, err := fmt.Fprintln(output, absolute); err != nil {
+		return fmt.Errorf("print report path: %w", err)
+	}
+	if err := launchReport(absolute); err != nil {
+		return fmt.Errorf("open report: %w", err)
+	}
+	return nil
+}
+
+func parseShowSelector(args []string) (bool, bool, string, error) {
+	asJSON, openReport, selector, selectorSet := false, false, "latest", false
+	for _, argument := range args {
+		switch {
+		case argument == "--json":
+			asJSON = true
+		case argument == "--open":
+			openReport = true
+		case strings.HasPrefix(argument, "-"):
+			return false, false, "", fmt.Errorf("unknown show option %q", argument)
+		case selectorSet:
+			return false, false, "", errors.New("show accepts at most one SESSION|latest selector")
+		default:
+			selector, selectorSet = argument, true
+		}
+	}
+	if asJSON && openReport {
+		return false, false, "", errors.New("show cannot combine --json and --open")
+	}
+	return asJSON, openReport, selector, nil
 }
 
 func parseJSONSelector(command string, args []string) (bool, string, error) {
@@ -379,5 +426,5 @@ func runCommand(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr list [--limit N] [--json] | afr show [--json] [SESSION|latest] | afr verify [--json] [SESSION|latest] | afr clean (--older-than DURATION | --max-bytes SIZE) [--yes]")
+	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr list [--limit N] [--json] | afr show [--json|--open] [SESSION|latest] | afr verify [--json] [SESSION|latest] | afr clean (--older-than DURATION | --max-bytes SIZE) [--yes]")
 }

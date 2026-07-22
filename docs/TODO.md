@@ -17,7 +17,7 @@
   - 产物：`PROJECT_PLAN.md`、本文件、`architecture.puml`。
 
 - [x] **PLAN-04 [P0] 重新对照源方案、实现和发布真值**
-  - 结果：确认两个 P0 代码差距、六个 P0 发布动作、四组 P1 增强与 20 次会话数据门；移除 `show --open` / `--summary-json` 的过期 v0.1 承诺。
+  - 结果：确认两个 P0 代码差距、六个 P0 发布动作、四组 P1 增强与 20 次会话数据门；移除 `--summary-json` 的过期 v0.1 承诺，`show --open` 后续作为独立 P1 交付。
 
 ### 0.1 下一步唯一执行队列
 
@@ -27,12 +27,12 @@
 |---:|---|---|---|
 | 1 | ✅ `M3-22`、`M3-23` | 已完成 | 10 万事件测试、固定六行摘要和三平台 CI 已通过 |
 | 2 | ✅ `REL-01` | 已完成 | MIT License 文件、README、插件 manifest 与 release notes 一致 |
-| 3 | `REL-02`、`REL-03` | 已登录 Claude 账户、独立干净 Windows VM | 两项人工证据写入发布检查表 |
-| 4 | `REL-04` | 顺序 3 | 最终 `main` commit 的 release-check、CI、版本和 SHA 一致 |
-| 5 | `REL-05`、`REL-06` | `REL-01`、`REL-04` | 公开 Release 完成，回下载与公共安装复验通过 |
-| 6A | `M3-09` → `M1-11` → `M2-07` | `REL-06` 后启动；均为 P1 | 每项独立验收，不捆绑 hooks 或平台服务 |
-| 6B | `R0-09` | `REL-06` 后与 6A 并行 | 完成 20 条本地真实会话评审；每条记录 version/commit，允许区分期间发布的补丁版 |
-| 7 | `DEC-01` | `R0-09` | 只选择一个有重复证据的方向，或明确保持现状 |
+| 3 | ⏸ `REL-02`、`REL-03` | 产品负责人于 2026-07-22 暂时搁置 | 保持未完成，不再调试或用其他证据替代 |
+| 4 | `M3-09` → `M1-11` → `M2-07` | 临时提前；均为 P1 | 每项独立验收，不捆绑 hooks 或平台服务 |
+| 5 | `REL-04` | 依赖已暂停的顺序 3 | 最终 `main` commit 的 release-check、CI、版本和 SHA 一致 |
+| 6 | `REL-05`、`REL-06` | `REL-01`、`REL-04` | 公开 Release 完成，回下载与公共安装复验通过 |
+| 7 | `R0-09` | `REL-06` 后开始 | 完成 20 条本地真实会话评审；每条记录 version/commit，允许区分期间发布的补丁版 |
+| 8 | `DEC-01` | `R0-09` | 只选择一个有重复证据的方向，或明确保持现状 |
 
 ## 1. Phase 0：契约冻结（2 天）
 
@@ -373,10 +373,10 @@
   - 依赖：M3-01、M3-07。
   - 验收：完整 ID、唯一前缀、latest 可用；歧义明确失败；incomplete 生成只读摘要。
 
-- [ ] **M3-09 [P1] 实现 `afr show --open`**
+- [x] **M3-09 [P1] 实现 `afr show --open`**
   - 依赖：M3-08、M3-04。
-  - 当前：parser 和测试明确拒绝 `--open`；它不是当前 v0.1 命令契约。
   - 验收：先实现 Windows；路径含空格/Unicode 时不经 shell 字符串拼接地打开；失败仍打印绝对报告路径。Linux/macOS 随 R0-05 增加 `xdg-open` / `open` 冒烟。
+  - 结果：Windows、macOS、Linux 分别使用 `explorer.exe`、`open`、`xdg-open` 的独立 argv；`--json` 与 `--open` 互斥，打开失败前先输出绝对 HTML 路径；Go 测试覆盖 Unicode/空格路径和失败路径。
 
 - [ ] **M3-10 [P2] 实现 `afr report`**
   - 依赖：M2-16、M3-01。

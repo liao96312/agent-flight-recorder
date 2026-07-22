@@ -54,11 +54,8 @@ Report: C:\Users\you\.afr\sessions\20260721T120000.000000000Z-example\report.htm
 ```powershell
 afr list
 afr show latest
+afr show --open latest
 afr verify latest
-$latest = Get-ChildItem (Join-Path $HOME '.afr\sessions') -Directory |
-  Sort-Object LastWriteTimeUtc -Descending |
-  Select-Object -First 1
-Start-Process (Join-Path $latest.FullName 'report.html')
 ```
 
 报告是离线单文件 HTML。`verify` 成功只证明本地证据链与 manifest 当前一致，不代表数字签名或远端见证。

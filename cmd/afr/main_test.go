@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,9 +42,33 @@ func TestRunRequiresArgvSeparator(t *testing.T) {
 	}
 }
 
-func TestShowRejectsUnimplementedOpenOption(t *testing.T) {
-	if code := showCommand([]string{"--open"}); code != exitUsage {
-		t.Fatalf("exit code = %d, want %d", code, exitUsage)
+func TestShowOptions(t *testing.T) {
+	asJSON, openReport, selector, err := parseShowSelector([]string{"--open", "session-1"})
+	if err != nil || asJSON || !openReport || selector != "session-1" {
+		t.Fatalf("json=%t open=%t selector=%q error=%v", asJSON, openReport, selector, err)
+	}
+	if _, _, _, err := parseShowSelector([]string{"--json", "--open"}); err == nil {
+		t.Fatal("show accepted --json with --open")
+	}
+}
+
+func TestReportOpenCommandKeepsPathAsOneArgument(t *testing.T) {
+	path := `C:\workspace with spaces\报告\report.html`
+	command, args, err := reportOpenCommand("windows", path)
+	if err != nil || command != "explorer.exe" || len(args) != 1 || args[0] != path {
+		t.Fatalf("command=%q args=%q error=%v", command, args, err)
+	}
+}
+
+func TestOpenReportPrintsAbsolutePathBeforeLaunchFailure(t *testing.T) {
+	original := launchReport
+	launchReport = func(string) error { return errors.New("failed") }
+	t.Cleanup(func() { launchReport = original })
+
+	var output bytes.Buffer
+	path := filepath.Join(t.TempDir(), "report.html")
+	if err := openReportFile(path, &output); err == nil || strings.TrimSpace(output.String()) != path {
+		t.Fatalf("output=%q error=%v", output.String(), err)
 	}
 }
 

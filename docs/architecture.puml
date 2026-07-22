@@ -48,7 +48,7 @@ ClaudePlugin ..> AFR : v0.2 正式 hook JSON
 CLI --> AFR : 进程 / 输出 / 状态
 AFR --> Workspace : before / after / Git delta
 AFR --> Store : 只写已脱敏证据
-Auditor --> AFR : list / show / verify / clean
+Auditor --> AFR : list / show / show --open / verify / clean
 Auditor --> Browser : 打开本地报告
 Browser --> Store : 读取单文件 HTML
 Store ..> Dify : P2，用户显式允许的脱敏摘要
