@@ -582,9 +582,9 @@ M1 结束时必须能稳定回答：
 |---:|---|---|---|
 | 1 | ✅ `M3-22` HTML 有界事件时间线；`M3-23` 完整运行摘要 | 已完成 | 10 万事件 fixture、固定六行摘要、child stdout 不污染和三平台 CI 均通过 |
 | 2 | ✅ `REL-01` MIT License | 已完成 | 根 License、README、插件 manifest 与发布说明一致 |
-| 3 | ✅ `REL-02` Claude `/afr:afr`；⏳ `REL-03` 独立干净 Windows 产物验收 | Claude 实调用已完成；独立 artifact 消费作业开始实施 | 全新 Windows 作业只下载上游 artifact，不 checkout 源码、不复用构建文件系统 |
+| 3 | ✅ `REL-02` Claude `/afr:afr`；✅ `REL-03` 独立干净 Windows 产物验收 | 已完成 | 全新 Windows 作业只下载上游 artifact；SHA、无 Git 录制、verify 与缺 Agent 错误路径均通过 |
 | 4 | ✅ `M3-09`、`M1-11`、`M2-07` | 发布门槛暂停期间已逐项完成；每项单独提交 | 浏览器打开、ignore 和配置失败验收及三平台 CI 分别通过 |
-| 5 | `REL-04` 最终候选检查 | 依赖顺序 3 恢复并完成 | 从最终 `main` commit 运行完整 release-check，CI、版本、SHA-256 和 release notes 指向同一 commit |
+| 5 | `REL-04` 最终候选检查 | 当前下一项 | 从最终 `main` commit 运行完整 release-check，CI、版本、SHA-256 和 release notes 指向同一 commit |
 | 6 | `REL-05` tag + GitHub Release；`REL-06` 回下载 / 公共安装复验 | 严格串行 | 公开附件可下载、校验一致、快速开始能从零复现 |
 | 7 | `R0-09` 20 次真实会话 | `REL-06` 后立即开始；不建设遥测 | 每次记录 version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿，可区分期间的补丁版 |
 | 8 | `DEC-01` 数据门 | 依赖完整 20 次记录 | 形成 ADR：只启动一个证据最强的方向，或明确保持 wrapper；不得一次启动 hooks、Dify、索引和签名 |

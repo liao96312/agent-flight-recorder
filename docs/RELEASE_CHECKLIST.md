@@ -44,7 +44,8 @@ Windows PowerShell、Go 1.26、Git、Codex CLI 与 Claude Code 均可用时：
 - Claude Code：2.1.185，strict validator、`--plugin-dir`、marketplace install/disable/enable/update/uninstall 和组件 inventory 均通过。2026-07-22 使用 OpenRouter Anthropic-compatible API 与 `openrouter/free` 从真实 `/afr:afr` 调用 `afr 0.1.0`（commit `fa2ba5780caa`）；session `20260722T014003.862517200Z-9a4b7bb5330396fc02df94db` completed/exit 0、工作区改动 0，verify 为 valid、7 events、6 evidence、3 derived。OpenRouter key API 在测试后报告 free tier 且 usage/daily/weekly/monthly 均为 0；Claude Code 的估算成本不是实际扣费证据。免费子模型没有遵循精确短语要求，按模型质量现象保留，不作为 AFR 功能断言；API key 未持久化。
 - 插件生命周期哨兵：session `20260721T021226.609628600Z-6ba15d328a82d12c6a5a70a6` 的 manifest SHA-256 在两宿主操作前后均为 `fde9db65d601835a408be26897ce1c7b30998c2addc893216d6bae26c748e96e`。
 - Windows GitHub Actions：构建、空 profile 的 `version/list`、SHA-256 复算和 artifact 上传已通过；候选实现 run：<https://github.com/liao96312/agent-flight-recorder/actions/runs/29795780084>。
+- Windows 独立 artifact 验收：全新 `windows-latest` 作业只下载上游 artifact，SHA、空 profile、无 Git 录制、六行摘要、`verify` 和缺 Agent 错误路径均通过；run：<https://github.com/liao96312/agent-flight-recorder/actions/runs/29884664955>。
 - 报告与摘要收口：commit `efc7eb1` 的 10 万事件 fixture 验证时间线最多 1,000 行、显式 omission 和 512 UTF-8 bytes 上限；固定六行摘要、`RunResult` 集成及 child stdout 隔离测试通过。
 - Unix 证据：WSL2 Ubuntu 使用 Go 1.26.5 完成 `go test ./...`、真实 build/run/verify/show 与 Windows/macOS 交叉测试编译；Ubuntu 和 macOS runner 的 go test/build、孙进程终止、真实 run/verify 均通过：[run 29798685253](https://github.com/liao96312/agent-flight-recorder/actions/runs/29798685253)。
 - License：产品负责人于 2026-07-21 选择 MIT；根 `LICENSE`、README、插件 manifest 与 release notes 已统一为 SPDX `MIT`。
-- 当前发布阻塞项：独立干净 Windows VM、最终 main 一致性检查、正式 tag / Release 与回下载验证。以上未完成前状态保持 candidate。
+- 当前发布阻塞项：最终 main 一致性检查、正式 tag / Release 与回下载验证。以上未完成前状态保持 candidate。

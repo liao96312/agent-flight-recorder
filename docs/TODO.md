@@ -27,7 +27,7 @@
 |---:|---|---|---|
 | 1 | ✅ `M3-22`、`M3-23` | 已完成 | 10 万事件测试、固定六行摘要和三平台 CI 已通过 |
 | 2 | ✅ `REL-01` | 已完成 | MIT License 文件、README、插件 manifest 与 release notes 一致 |
-| 3 | ✅ `REL-02`；⏳ `REL-03` | Claude Code 实调用已完成；独立 Windows 产物验收已启动 | `REL-03` 必须由全新 Windows 作业下载上游 artifact 验证，不在构建作业内自测 |
+| 3 | ✅ `REL-02`；✅ `REL-03` | Claude Code 实调用与独立 Windows 产物验收均已完成 | 进入 `REL-04` 最终候选一致性检查 |
 | 4 | ✅ `M3-09` → `M1-11` → `M2-07` | 已逐项完成；均为 P1 | 独立提交、测试和三平台 CI 通过 |
 | 5 | `REL-04` | 依赖已暂停的顺序 3 | 最终 `main` commit 的 release-check、CI、版本和 SHA 一致 |
 | 6 | `REL-05`、`REL-06` | `REL-01`、`REL-04` | 公开 Release 完成，回下载与公共安装复验通过 |
@@ -539,9 +539,10 @@
   - 验收：从实际插件入口调用 `/afr:afr`，确认命中同一 `afr` CLI，生成新 session、六项摘要完整、`afr verify` 通过；记录 Claude / AFR 版本、命令、session ID 与结果。
   - 结果：2026-07-22 使用 Claude Code `2.1.185`、OpenRouter Anthropic-compatible API 与免费路由 `openrouter/free`，从 `--plugin-dir plugins/afr` 的 `/afr:afr` 调用本机 `afr 0.1.0`（commit `fa2ba5780caa`）。session `20260722T014003.862517200Z-9a4b7bb5330396fc02df94db` completed/exit 0、工作区改动 0；`verify --json` 为 valid，7 events、6 evidence、3 derived。OpenRouter key API 在测试后报告 free tier 且 usage/daily/weekly/monthly 均为 0；Claude Code 展示的估算成本不作为实际扣费证据。免费子模型未遵循精确短语要求，按模型质量现象记录，不冒充功能断言；插件、进程、摘要和证据链路验收通过。API key 未写入项目或用户配置。
 
-- [ ] **REL-03 [P0] 独立干净 Windows 环境候选制品复验**
+- [x] **REL-03 [P0] 独立干净 Windows 环境候选制品复验**
   - 依赖：M3-22、M3-23、R0-03。
   - 验收：不使用开发机工作树或构建作业文件系统；全新 Windows x64 作业只下载上游候选 exe/SHA 并复算校验；`version`、`list --json`、无 Git 的最小录制及 `verify` 可运行，缺 Agent 时错误明确；记录运行链接、时间和结果。
+  - 结果：2026-07-22 GitHub Actions 独立 `windows-latest` 作业未 checkout 源码、未安装 Go，仅下载上游 artifact；SHA-256、空 profile 的 `version/list`、移除 Git PATH 后的最小录制、六行摘要及 `verify` 均通过，session `20260722T020221.618569700Z-6ff2e6d3846cde596b55ae00` 为 7 events、6 evidence、3 derived；缺失 Agent 返回 70 与 `AFR_RUNTIME`。运行：<https://github.com/liao96312/agent-flight-recorder/actions/runs/29884664955>。
 
 - [ ] **REL-04 [P0] 冻结最终 v0.1.0 候选 commit**
   - 依赖：M3-22、M3-23、REL-02、REL-03、R0-08。
@@ -602,7 +603,7 @@ F0 契约
   -> REL-01 MIT License（已完成）
   -> P1 可用性（show --open / ignore / 配置，已完成）
   -> REL-02 Claude Code 真实 skill 冒烟（已完成）
-  -> [暂停] REL-03..REL-06 正式 v0.1.0 发布
+  -> [进行中] REL-04..REL-06 正式 v0.1.0 发布
       -> R0-09 二十次真实会话（逐条记录 version/commit）
           -> DEC-01 单方向数据门
               -> [仅证据触发] M4 hooks / 其他一个扩展方向
