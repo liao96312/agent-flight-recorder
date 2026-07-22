@@ -29,7 +29,7 @@ Windows PowerShell、Go 1.26、Git、Codex CLI 与 Claude Code 均可用时：
 | Windows 干净 VM | GitHub Actions `windows`，另在干净 Windows VM 下载 artifact | 仅放 exe 可运行 `version`、`list --json`；缺 Git/Agent 时错误清楚 |
 | Windows 发布物 | `scripts/build.ps1` 后复算 `SHA256SUMS` | exe、SHA-256、版本说明齐全且一致 |
 | Codex 插件 | plugin/skill validator；marketplace add/list/install；`afr run -- codex exec ...` | validator、发现和真实记录成功 |
-| Claude Code 插件 | `claude plugin validate --strict`；`--plugin-dir`；`/afr:afr` | 共根加载且 skill 调用同一 `afr`；需已登录 Claude |
+| Claude Code 插件 | `claude plugin validate --strict`；`--plugin-dir`；`/afr:afr` | 共根加载且 skill 调用同一 `afr`；使用 Claude 账户或兼容 API provider 认证 |
 | 插件生命周期 | 两宿主 install/update/disable/remove 前后复算 session manifest | `~/.afr/sessions` 不变；缺失/不兼容 CLI 提示明确 |
 | 文档 | README、QUICKSTART、SECURITY、RELEASE_NOTES | 安装到 clean 全流程可复制；边界与删除方式明确 |
 | License 与发布真值 | `REL-01`、`REL-04`、`REL-05` | License 已明确；最终 main、tag、Release、二进制版本、CI、release notes 与 SHA 指向同一 commit |
@@ -41,10 +41,10 @@ Windows PowerShell、Go 1.26、Git、Codex CLI 与 Claude Code 均可用时：
 - Windows 基准：Windows 10 IoT Enterprise LTSC 10.0.19044、i5-12400、31.77 GiB RAM、Git 2.54.0；最终候选检查 before 1.040 s、after 1.008 s、delta 3.101 ms、patch 1.635 s。
 - 发布压力与安全矩阵：100 次强制终止、100 路并发输出（10,000 条记录）、secret、篡改、clean、HTML 和 v1 兼容测试均通过。
 - Codex：0.138.0，marketplace 发现/安装成功；兼容模型 `gpt-5.4` 的 AFR 包装冒烟返回 `AFR_CODEX_SMOKE_OK`，session verify 为 63 events、6 evidence、3 derived。
-- Claude Code：2.1.185，strict validator、`--plugin-dir`、marketplace install/disable/enable/update/uninstall 和组件 inventory 均通过；真实 `/afr:afr` 模型调用因本机未登录，发布前需由已登录账户复验。
+- Claude Code：2.1.185，strict validator、`--plugin-dir`、marketplace install/disable/enable/update/uninstall 和组件 inventory 均通过。2026-07-22 使用 OpenRouter Anthropic-compatible API 与 `openrouter/free` 从真实 `/afr:afr` 调用 `afr 0.1.0`（commit `fa2ba5780caa`）；session `20260722T014003.862517200Z-9a4b7bb5330396fc02df94db` completed/exit 0、工作区改动 0，verify 为 valid、7 events、6 evidence、3 derived。OpenRouter key API 在测试后报告 free tier 且 usage/daily/weekly/monthly 均为 0；Claude Code 的估算成本不是实际扣费证据。免费子模型没有遵循精确短语要求，按模型质量现象保留，不作为 AFR 功能断言；API key 未持久化。
 - 插件生命周期哨兵：session `20260721T021226.609628600Z-6ba15d328a82d12c6a5a70a6` 的 manifest SHA-256 在两宿主操作前后均为 `fde9db65d601835a408be26897ce1c7b30998c2addc893216d6bae26c748e96e`。
 - Windows GitHub Actions：构建、空 profile 的 `version/list`、SHA-256 复算和 artifact 上传已通过；候选实现 run：<https://github.com/liao96312/agent-flight-recorder/actions/runs/29795780084>。
 - 报告与摘要收口：commit `efc7eb1` 的 10 万事件 fixture 验证时间线最多 1,000 行、显式 omission 和 512 UTF-8 bytes 上限；固定六行摘要、`RunResult` 集成及 child stdout 隔离测试通过。
 - Unix 证据：WSL2 Ubuntu 使用 Go 1.26.5 完成 `go test ./...`、真实 build/run/verify/show 与 Windows/macOS 交叉测试编译；Ubuntu 和 macOS runner 的 go test/build、孙进程终止、真实 run/verify 均通过：[run 29798685253](https://github.com/liao96312/agent-flight-recorder/actions/runs/29798685253)。
 - License：产品负责人于 2026-07-21 选择 MIT；根 `LICENSE`、README、插件 manifest 与 release notes 已统一为 SPDX `MIT`。
-- 当前发布阻塞项：独立干净 Windows VM、已登录 Claude 实调用、最终 main 一致性检查、正式 tag / Release 与回下载验证。以上未完成前状态保持 candidate。
+- 当前发布阻塞项：独立干净 Windows VM、最终 main 一致性检查、正式 tag / Release 与回下载验证。以上未完成前状态保持 candidate。

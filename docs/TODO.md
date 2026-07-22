@@ -3,7 +3,7 @@
 > 与 [PROJECT_PLAN.md](./PROJECT_PLAN.md) 同步维护。任务只有在“验收”可重复通过后才能勾选。
 > 优先级：P0 发布阻塞；P1 正式可用增强；P2 有真实需求后再做。
 > 估算假设：1 名全职开发者，Windows x64 为 v0.1 发布平台。
-> 当前基线：v0.1 核心候选、HTML 有界事件时间线、六行运行摘要、Unix CI 证据、MIT License 和三项 P1 可用性增强已完成；正式 tag / Release 和两项已暂停的人工发布门槛尚未完成。
+> 当前基线：v0.1 核心候选、HTML 有界事件时间线、六行运行摘要、Unix CI 证据、MIT License、Claude Code 真实 skill 冒烟和三项 P1 可用性增强已完成；正式 tag / Release 与已暂停的干净 VM 门槛尚未完成。
 
 ## 0. 当前状态
 
@@ -21,13 +21,13 @@
 
 ### 0.1 下一步唯一执行队列
 
-同一任务只在后文保留一个复选框；本表引用 canonical ID，不复制状态。License 和宿主登录等待期间，继续推进不依赖外部权限的 P0 项。
+同一任务只在后文保留一个复选框；本表引用 canonical ID，不复制状态。外部门槛等待期间，继续推进不依赖该门槛的任务。
 
 | 顺序 | 任务 | 当前阻塞 | 进入下一项的条件 |
 |---:|---|---|---|
 | 1 | ✅ `M3-22`、`M3-23` | 已完成 | 10 万事件测试、固定六行摘要和三平台 CI 已通过 |
 | 2 | ✅ `REL-01` | 已完成 | MIT License 文件、README、插件 manifest 与 release notes 一致 |
-| 3 | ⏸ `REL-02`、`REL-03` | 产品负责人于 2026-07-22 暂时搁置 | 保持未完成，不再调试或用其他证据替代 |
+| 3 | ✅ `REL-02`；⏸ `REL-03` | Claude Code 实调用已完成；干净 VM 继续暂停 | `REL-03` 必须保留独立 VM 人工证据，不用 CI 或开发机替代 |
 | 4 | ✅ `M3-09` → `M1-11` → `M2-07` | 已逐项完成；均为 P1 | 独立提交、测试和三平台 CI 通过 |
 | 5 | `REL-04` | 依赖已暂停的顺序 3 | 最终 `main` commit 的 release-check、CI、版本和 SHA 一致 |
 | 6 | `REL-05`、`REL-06` | `REL-01`、`REL-04` | 公开 Release 完成，回下载与公共安装复验通过 |
@@ -418,7 +418,7 @@
 - [x] **M3-19 [P0] 校验 Claude Code 插件包与生命周期**
   - 依赖：M3-16、M3-17。
   - 验收：strict validator、`claude --plugin-dir`、marketplace install/disable/enable/update/uninstall 和共根 inventory 通过；额外 Codex manifest 不造成错误。
-  - 边界：已登录账户的 namespaced skill 实调用未由本项冒充完成，单列 `REL-02`。
+  - 边界：namespaced skill 实调用未由本项的 validator/loader 冒充；后续已由 `REL-02` 使用兼容 API provider 认证完成。
 
 - [x] **M3-20 [P0] 双宿主共根失败时最小分包**
   - 依赖：M3-18、M3-19。
@@ -527,16 +527,17 @@
 
 - [x] **R0-08 [P0] 建立发布检查表**
   - 依赖：F0-03、F0-14、M3-14 至 M3-20；检查表任务不依赖自身。
-  - 验收：测试、基准、secret scan、HTML 网络检查、干净 VM、双宿主插件、文档和校验和都有槽位；候选记录明确标出未完成的 Claude 实调用与独立 VM，不用 validator/CI 代替人工证据。
+  - 验收：测试、基准、secret scan、HTML 网络检查、干净 VM、双宿主插件、文档和校验和都有槽位；候选记录持续更新 Claude 实调用与独立 VM 的实际状态，不用 validator/CI 代替人工证据。
 
 - [x] **REL-01 [P0] 确认公开发行 License**
   - 依赖：产品负责人明确选择允许公开发行的许可证或其他发行条款。
   - 验收：仓库根存在完整 License / 发行条款，README、插件 manifest 和 release notes 表述一致；若决定暂不授权，本项保持未完成并阻塞 `REL-05`，不擅自替用户选择。
   - 结果：产品负责人于 2026-07-21 选择 MIT；根 `LICENSE`、中英文 README、Codex / Claude manifest 与 release notes 已统一。
 
-- [ ] **REL-02 [P0] 已登录 Claude Code 真实 skill 冒烟**
-  - 依赖：M3-17、M3-19、M3-23；可用的已登录 Claude Code 账户。
+- [x] **REL-02 [P0] Claude Code 真实 skill 冒烟**
+  - 依赖：M3-17、M3-19、M3-23；可用的 Claude 账户或兼容 API provider 认证。
   - 验收：从实际插件入口调用 `/afr:afr`，确认命中同一 `afr` CLI，生成新 session、六项摘要完整、`afr verify` 通过；记录 Claude / AFR 版本、命令、session ID 与结果。
+  - 结果：2026-07-22 使用 Claude Code `2.1.185`、OpenRouter Anthropic-compatible API 与免费路由 `openrouter/free`，从 `--plugin-dir plugins/afr` 的 `/afr:afr` 调用本机 `afr 0.1.0`（commit `fa2ba5780caa`）。session `20260722T014003.862517200Z-9a4b7bb5330396fc02df94db` completed/exit 0、工作区改动 0；`verify --json` 为 valid，7 events、6 evidence、3 derived。OpenRouter key API 在测试后报告 free tier 且 usage/daily/weekly/monthly 均为 0；Claude Code 展示的估算成本不作为实际扣费证据。免费子模型未遵循精确短语要求，按模型质量现象记录，不冒充功能断言；插件、进程、摘要和证据链路验收通过。API key 未写入项目或用户配置。
 
 - [ ] **REL-03 [P0] 独立干净 Windows VM 候选制品复验**
   - 依赖：M3-22、M3-23、R0-03。
@@ -600,7 +601,8 @@ F0 契约
   -> M3-22 有界时间线 + M3-23 运行摘要（已完成）
   -> REL-01 MIT License（已完成）
   -> P1 可用性（show --open / ignore / 配置，已完成）
-  -> [暂停] REL-02..REL-06 正式 v0.1.0 发布
+  -> REL-02 Claude Code 真实 skill 冒烟（已完成）
+  -> [暂停] REL-03..REL-06 正式 v0.1.0 发布
       -> R0-09 二十次真实会话（逐条记录 version/commit）
           -> DEC-01 单方向数据门
               -> [仅证据触发] M4 hooks / 其他一个扩展方向
