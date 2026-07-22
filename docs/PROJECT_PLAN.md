@@ -561,7 +561,7 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 | M3 候选版 | 候选代码、报告时间线和运行摘要已完成 | 0 | 报告、CLI、Windows 包、薄插件 | `M3-22`、`M3-23` 与既有安全门槛均通过 |
 | R0 正式发布 | 已完成 | 0 | License、Claude 实调用、干净环境、tag、Release、回下载 | `REL-01` 至 `REL-06` 全部有证据 |
 | P1 可用性 | 已完成 | 0 | `show --open`、ignore、自定义 RE2 | 三项均独立测试、提交和 CI，不捆绑大版本 |
-| OBS 公开试用 | 进行中（0/20） | 事件驱动，直到 20 次 | 真实 Codex/Claude wrapper 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
+| OBS 公开试用 | 进行中（1/20） | 事件驱动，直到 20 次 | 真实 Codex/Claude wrapper 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
 | DEC 数据门 | 未开始 | 半天 | 对证据缺口、性能、复核价值做决策 | `DEC-01` 明确“只做一个方向”或“保持现状” |
 | M4a Codex Desktop hooks | 已按停止门终止 | Desktop 连续两个 turn 转换均缺 `Stop` | 不实施 `afr hook`、hook-only session、并发锁和 Desktop E2E | 后续 Desktop 版本明确可重复触发五类事件时重开 |
 | M5 团队增强 | 条件性暂缓 | 数据驱动 | 签名见证、索引、Dify/团队分析 | 有真实使用数据、明确责任人和合规边界 |
