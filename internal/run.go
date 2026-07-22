@@ -54,6 +54,10 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 	if err != nil {
 		return RunResult{}, err
 	}
+	ignore, err := loadAFRIgnore(workspace)
+	if err != nil {
+		return RunResult{}, err
+	}
 	if options.SessionsRoot == "" {
 		options.SessionsRoot, err = DefaultSessionsRoot()
 		if err != nil {
@@ -91,7 +95,7 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 		return result, err
 	}
 	riskSet := NewRiskSet()
-	before := CollectWorkspace(workspace, options.SessionsRoot, fingerprinter, options.ScanLimits)
+	before := collectWorkspace(workspace, options.SessionsRoot, fingerprinter, options.ScanLimits, ignore)
 	session.Meta.Capabilities = WorkspaceCapabilities(before)
 	redactedArgv, argvRedactions := redactor.ArgvWithKinds(argv)
 	sessionStartedSeq, err := writer.Append("session_started", "afr", map[string]any{
@@ -298,7 +302,7 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 			return result, err
 		}
 	}
-	after := CollectWorkspace(workspace, options.SessionsRoot, fingerprinter, options.ScanLimits)
+	after := collectWorkspace(workspace, options.SessionsRoot, fingerprinter, options.ScanLimits, ignore)
 	delta := CompareWorkspace(before, after)
 	patch, patchErr := GenerateWorkspacePatch(workspace, session.Root, before, after, delta, fingerprinter, redactor, defaultDiffLimit)
 	if patchErr != nil {

@@ -60,7 +60,22 @@ afr verify latest
 
 报告是离线单文件 HTML。`verify` 成功只证明本地证据链与 manifest 当前一致，不代表数字签名或远端见证。
 
-## 4. 预览并清理
+## 4. 可选：排除扫描路径
+
+在工作区根目录创建 `.afrignore`，可排除生成目录或大文件：
+
+```text
+# 相对根目录的路径前缀
+vendor/
+
+# Go path.Match glob；不会递归匹配子目录
+*.log
+generated/*.tmp
+```
+
+Windows 分隔符 `\` 会统一为 `/`。非法模式会在 child 启动前失败。它不是完整 `.gitignore`，不支持 `!` 取反、递归 `**` 或父目录配置发现。
+
+## 5. 预览并清理
 
 清理默认只预览，不会后台自动执行：
 

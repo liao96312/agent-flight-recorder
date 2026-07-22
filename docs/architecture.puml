@@ -625,7 +625,7 @@ rectangle "REL-01 已完成\nMIT License" as License #E2F0D9
 rectangle "人工发布门槛\nREL-02 已登录 Claude 实调用\nREL-03 独立干净 Windows VM" as Manual #FFF2CC
 rectangle "最终候选\nREL-04 release-check + Windows/Unix CI\n版本 / commit / SHA 一致" as RC #D9EAF7
 rectangle "正式公开发布\nREL-05 v0.1.0 tag + Release\nREL-06 回下载 / 公共安装复验" as Release #C6E0B4
-rectangle "P1 可用性（约 2–3 天）\nshow --open → .afrignore → .afr.json" as P1 #D9EAF7
+rectangle "P1 可用性（进行中）\n✓ show --open → ✓ .afrignore → .afr.json" as P1 #D9EAF7
 rectangle "公开试用（事件驱动）\nR0-09：20 次真实会话\n本地记录价值、误报、缺口与开销" as Pilot #E4DFEC
 rectangle "◇ DEC-01\n是否有多个 session 证明\n同一缺口反复阻碍复核？" as DataGate #FCE4D6
 rectangle "保持 CLI + 薄插件\n修复具体缺陷并继续观察" as Maintain #E2F0D9
