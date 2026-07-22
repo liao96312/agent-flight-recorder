@@ -57,13 +57,16 @@ flowchart LR
 
 ## 快速开始
 
-前置：Windows x64、Go 1.26、Git，以及需要运行的 Agent CLI。
+前置：Windows x64、Git，以及需要运行的 Agent CLI。v0.1.0 二进制未做代码签名。
 
 ```powershell
-git clone https://github.com/liao96312/agent-flight-recorder.git
-Set-Location agent-flight-recorder
-.\scripts\build.ps1 -Version 0.1.0
-$afr = '.\dist\afr-windows-amd64.exe'
+$release = 'https://github.com/liao96312/agent-flight-recorder/releases/download/v0.1.0'
+Invoke-WebRequest "$release/afr-windows-amd64.exe" -OutFile .\afr-windows-amd64.exe
+Invoke-WebRequest "$release/SHA256SUMS" -OutFile .\SHA256SUMS
+$expected = ((Get-Content -Raw .\SHA256SUMS).Trim() -split '\s+')[0]
+$actual = (Get-FileHash -Algorithm SHA256 .\afr-windows-amd64.exe).Hash.ToLowerInvariant()
+if ($actual -ne $expected) { throw 'AFR checksum mismatch' }
+$afr = '.\afr-windows-amd64.exe'
 & $afr version
 ```
 
@@ -174,4 +177,4 @@ docs/         计划、TODO、架构、安全、快速开始与发布检查表
 
 ## 当前状态
 
-v0.1 候选版现已包含 HTML 有界事件时间线、固定六行运行摘要，通过 Windows/Ubuntu/macOS CI，采用 [MIT License](LICENSE)，并已通过兼容 API provider 认证的 Claude Code `/afr:afr` 真实冒烟，但尚未正式发布。剩余门槛是干净 VM 验证、最终候选一致性检查、公开 tag/Release 与回下载验证。Windows x64 仍是发布制品，Ubuntu 和 macOS 为 beta；原生 hooks 和更大的平台能力继续由真实数据门控制。
+[v0.1.0](https://github.com/liao96312/agent-flight-recorder/releases/tag/v0.1.0) 是首个公开版本，提供未签名的 Windows x64 可执行文件及 SHA-256 校验和；Ubuntu 和 macOS 仍为 beta，仅提供源码支持。原生 hooks 和更大的平台能力继续由真实数据门控制。

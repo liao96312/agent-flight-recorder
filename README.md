@@ -57,13 +57,16 @@ flowchart LR
 
 ## Quick Start
 
-Requirements: Windows x64, Go 1.26, Git, and the agent CLI you want to run.
+Requirements: Windows x64, Git, and the agent CLI you want to run. The v0.1.0 binary is not code-signed.
 
 ```powershell
-git clone https://github.com/liao96312/agent-flight-recorder.git
-Set-Location agent-flight-recorder
-.\scripts\build.ps1 -Version 0.1.0
-$afr = '.\dist\afr-windows-amd64.exe'
+$release = 'https://github.com/liao96312/agent-flight-recorder/releases/download/v0.1.0'
+Invoke-WebRequest "$release/afr-windows-amd64.exe" -OutFile .\afr-windows-amd64.exe
+Invoke-WebRequest "$release/SHA256SUMS" -OutFile .\SHA256SUMS
+$expected = ((Get-Content -Raw .\SHA256SUMS).Trim() -split '\s+')[0]
+$actual = (Get-FileHash -Algorithm SHA256 .\afr-windows-amd64.exe).Hash.ToLowerInvariant()
+if ($actual -ne $expected) { throw 'AFR checksum mismatch' }
+$afr = '.\afr-windows-amd64.exe'
 & $afr version
 ```
 
@@ -174,4 +177,4 @@ docs/         plan, TODO, architecture, security, quick start, release checklist
 
 ## Status
 
-The v0.1 candidate now includes the bounded HTML event timeline, fixed six-line run summary, passing Windows/Ubuntu/macOS CI, the [MIT License](LICENSE), a verified Claude Code `/afr:afr` smoke through an Anthropic-compatible API provider, clean Windows artifact acceptance on an independent runner, and a passing full release consistency check. It is not a formal release yet: the remaining gates are the public tag/Release and download-back verification. Windows x64 remains the release artifact; Ubuntu and macOS support is beta. Native hooks and broader platform services remain data-gated.
+[v0.1.0](https://github.com/liao96312/agent-flight-recorder/releases/tag/v0.1.0) is the first public release. It provides an unsigned Windows x64 executable and SHA-256 checksum; Ubuntu and macOS support remains beta and source-only. Native hooks and broader platform services remain data-gated.
