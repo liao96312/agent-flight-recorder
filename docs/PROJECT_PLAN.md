@@ -85,7 +85,7 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 
 | 原方案或既有契约 | 当前实现 / 外部事实 | 处理 |
 |---|---|---|
-| 公开可安装的首版 | 仓库已公开并采用 MIT，但没有 tag 或 GitHub Release | `REL-02` 至 `REL-06` 完成前只称 v0.1 候选版 |
+| 公开可安装的首版 | `v0.1.0` tag、公开 GitHub Release 与回下载验证已完成 | Windows x64 正式发布；Ubuntu/macOS 继续标 beta |
 | 运行结束输出 Session、Evidence、Changed、Risks、Exit、Report | 已固定输出六行 stderr 摘要，child stdout 不受污染 | `M3-23 [P0]` 已完成并通过三平台 CI |
 | HTML 提供可筛选的完整时间线 | 已提供有界、已脱敏的 seq 时间线，最多 1,000 行 | `M3-22 [P0]` 已完成；10 万事件 fixture 通过 |
 | 一条命令定位并打开报告 | `show --open` 已通过独立 argv 调用平台原生打开命令 | `M3-09 [P1]` 已完成，不阻塞 v0.1.0 发布 |
@@ -559,7 +559,7 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 | M1 工作区证据 | 已完成 | 0 | Git before/after/delta、非 Git 扫描、容量预算、有限 `.afrignore` | P0 与 `M1-11` 验收均通过 |
 | M2 安全证据 | 已完成 | 0 | 统一脱敏、内置与自定义 RE2 规则、哈希链、manifest、verify | P0 与 `M2-07` 验收均通过 |
 | M3 候选版 | 候选代码、报告时间线和运行摘要已完成 | 0 | 报告、CLI、Windows 包、薄插件 | `M3-22`、`M3-23` 与既有安全门槛均通过 |
-| R0 正式发布 | 未完成 | P0 约 1 天 + 两项人工/外部门槛 | License、Claude 实调用、干净 VM、tag、Release、回下载 | `REL-01` 至 `REL-06` 全部有证据 |
+| R0 正式发布 | 已完成 | 0 | License、Claude 实调用、干净环境、tag、Release、回下载 | `REL-01` 至 `REL-06` 全部有证据 |
 | P1 可用性 | 已完成 | 0 | `show --open`、ignore、自定义 RE2 | 三项均独立测试、提交和 CI，不捆绑大版本 |
 | OBS 公开试用 | 未开始 | 事件驱动，直到 20 次 | 真实 Codex/Claude 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
 | DEC 数据门 | 未开始 | 半天 | 对证据缺口、性能、复核价值做决策 | `DEC-01` 明确“只做一个方向”或“保持现状” |
@@ -585,8 +585,8 @@ M1 结束时必须能稳定回答：
 | 3 | ✅ `REL-02` Claude `/afr:afr`；✅ `REL-03` 独立干净 Windows 产物验收 | 已完成 | 全新 Windows 作业只下载上游 artifact；SHA、无 Git 录制、verify 与缺 Agent 错误路径均通过 |
 | 4 | ✅ `M3-09`、`M1-11`、`M2-07` | 发布门槛暂停期间已逐项完成；每项单独提交 | 浏览器打开、ignore 和配置失败验收及三平台 CI 分别通过 |
 | 5 | ✅ `REL-04` 最终候选检查 | 已完成 | 完整 release-check 通过；脚本断言二进制版本、内嵌 commit、release notes 与当前 HEAD 一致，并复算 SHA-256 |
-| 6 | `REL-05` tag + GitHub Release；`REL-06` 回下载 / 公共安装复验 | 当前下一项，严格串行 | 公开附件可下载、校验一致、快速开始能从零复现 |
-| 7 | `R0-09` 20 次真实会话 | `REL-06` 后立即开始；不建设遥测 | 每次记录 version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿，可区分期间的补丁版 |
+| 6 | ✅ `REL-05` tag + GitHub Release；✅ `REL-06` 回下载 / 公共安装复验 | 已完成 | 公开附件可下载、校验一致，Codex 公开安装与 Claude tag 插件发现通过 |
+| 7 | `R0-09` 20 次真实会话 | 当前下一项；不建设遥测 | 每次记录 version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿，可区分期间的补丁版 |
 | 8 | `DEC-01` 数据门 | 依赖完整 20 次记录 | 形成 ADR：只启动一个证据最强的方向，或明确保持 wrapper；不得一次启动 hooks、Dify、索引和签名 |
 
 独立环境等外部门槛等待期间不得用 CI 或开发机证据替代，也不得在人工验收未通过时提前打正式 tag。
@@ -594,7 +594,7 @@ M1 结束时必须能稳定回答：
 ## 14. 发布与运维
 
 - 使用 Go reproducible build 信息，`afr version` 输出版本、commit、构建时间、format version。
-- Windows x64 候选 exe 与校验和已经生成；项目采用 MIT License，只有 `REL-02` 至 `REL-06` 通过后才能称为 v0.1.0 正式公开发布。代码签名作为企业增强，不伪装已有签名。
+- Windows x64 `v0.1.0` exe 与校验和已按 MIT License 正式公开发布并完成回下载验证。制品未签名；代码签名仍是未来企业增强，不伪装已有签名。
 - 配置优先级固定为 CLI flags > workspace `.afr.json` > defaults；当前 `.afr.json` 仅提供严格的工作区自定义 RE2 脱敏规则，没有用户层或组织层配置。
 - 会话目录默认位于用户主目录 `.afr/sessions`，继承/设置仅当前用户访问权限。
 - 没有后台自动清理；用户显式运行 `clean`。
