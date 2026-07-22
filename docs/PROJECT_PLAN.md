@@ -40,7 +40,7 @@
 | 首个验收 Agent | `codex exec` 已完成真实包装与 verify 冒烟 | 每次正式发布复验 |
 | Claude Code 验收 | strict validator、加载、生命周期及 OpenRouter 认证的 `/afr:afr` 实调用已通过 | `REL-02` 已完成；免费子模型输出质量不作为 AFR 功能断言 |
 | 会话保留 | 不后台删除；文档可建议 30 天，实际删除必须显式运行 `clean` 并给出条件 | 20 次真实会话后复盘 |
-| Codex Desktop hooks | 不进入 v0.1；产品负责人于 2026-07-22 明确要求适配桌面端当前任务，先执行有停止门的最小 D0 切片 | `D0-01` 的 CLI 契约与持久信任已通过，等待新 Desktop 任务；更广 hooks 仍由 `DEC-01` 控制 |
+| Codex Desktop hooks | 不进入 v0.1；产品负责人于 2026-07-22 明确要求适配桌面端当前任务，先执行有停止门的最小 D0 切片 | `D0-01` 的 CLI 契约与持久信任已通过，等待 Desktop 重启后的新任务；更广 hooks 仍由 `DEC-01` 控制 |
 
 ## 2. 审读结论
 
@@ -563,7 +563,7 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 | P1 可用性 | 已完成 | 0 | `show --open`、ignore、自定义 RE2 | 三项均独立测试、提交和 CI，不捆绑大版本 |
 | OBS 公开试用 | 未开始 | 事件驱动，直到 20 次 | 真实 Codex/Claude 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
 | DEC 数据门 | 未开始 | 半天 | 对证据缺口、性能、复核价值做决策 | `DEC-01` 明确“只做一个方向”或“保持现状” |
-| M4a Codex Desktop hooks | D0-01 CLI 通过，Desktop 待测 | 等待新 Desktop 任务重测 | `afr hook`、hook-only session、并发锁、Desktop E2E | D0-01 实机触发正式事件；D0-06 当前任务无需嵌套 CLI 且 verify 通过 |
+| M4a Codex Desktop hooks | D0-01 CLI 通过，Desktop 待测 | 等待 Desktop 重启后新任务重测 | `afr hook`、hook-only session、并发锁、Desktop E2E | D0-01 实机触发正式事件；D0-06 当前任务无需嵌套 CLI 且 verify 通过 |
 | M5 团队增强 | 条件性暂缓 | 数据驱动 | 签名见证、索引、Dify/团队分析 | 有真实使用数据、明确责任人和合规边界 |
 
 ### 13.1 两周停止门槛
@@ -586,7 +586,7 @@ M1 结束时必须能稳定回答：
 | 4 | ✅ `M3-09`、`M1-11`、`M2-07` | 发布门槛暂停期间已逐项完成；每项单独提交 | 浏览器打开、ignore 和配置失败验收及三平台 CI 分别通过 |
 | 5 | ✅ `REL-04` 最终候选检查 | 已完成 | 完整 release-check 通过；脚本断言二进制版本、内嵌 commit、release notes 与当前 HEAD 一致，并复算 SHA-256 |
 | 6 | ✅ `REL-05` tag + GitHub Release；✅ `REL-06` 回下载 / 公共安装复验 | 已完成 | 公开附件可下载、校验一致，Codex 公开安装与 Claude tag 插件发现通过 |
-| 7 | `D0-01` → `D0-06` Codex Desktop 当前任务接入 | CLI 契约与信任已通过；等待新 Desktop 任务 | 新桌面任务通过五事件探针后恢复严格串行 |
+| 7 | `D0-01` → `D0-06` Codex Desktop 当前任务接入 | CLI 契约与信任已通过；等待 Desktop 重启后新任务 | 重启后的新桌面任务通过五事件探针后恢复严格串行 |
 | 8 | `R0-09` 20 次真实会话 | 依赖 D0-06；不建设遥测 | 每次记录 capture mode/version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿 |
 | 9 | `DEC-01` 数据门 | 依赖完整 20 次记录 | 形成 ADR：只启动一个证据最强的后续方向，或明确保持现状；不得同时扩建多个方向 |
 

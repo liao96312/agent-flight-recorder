@@ -1,7 +1,7 @@
 # D0-01 Codex Desktop Hook 契约探针记录
 
 日期：2026-07-22  
-结论：CLI 契约与持久信任已通过；当前桌面任务不热加载，等待新建 Desktop 任务完成最终探针。D0-02..D0-06 继续暂停。
+结论：CLI 契约与持久信任已通过；未重启的 Desktop 进程即使新建任务也不加载新 Hook，等待完整重启后的新任务完成最终探针。D0-02..D0-06 继续暂停。
 
 ## 环境
 
@@ -27,10 +27,12 @@
 - PATH 优先命中了 OpenClaw 自带 Codex `0.138.0`；该版本未发现 AFR 默认 plugin hooks。显式使用 npm Codex `0.145.0` 后问题消失，无需下载新依赖。
 - 默认模型 `gpt-5.6-sol` 要求更新版 CLI，首次冒烟在工具调用前被宿主拒绝；该次结果不计入事件覆盖。
 - 用户已在 Codex `0.145.0` 的 `/hooks` 界面确认 AFR Hook 为信任状态。当前 Codex Desktop 任务随后提交的新消息仍没有生成探针文件，证明当前任务不热加载新 Hook；尚未创建新的 Desktop 任务。
+- 用户随后在 Desktop 新建任务并完成一次本地工具调用，但探针文件仍停留在 CLI 会话产生的 10 个，最新时间为 11:34:22。Desktop 主进程启动于 08:59，早于 AFR Hook 安装；同一应用进程内的新任务不会重新加载该插件 Hook。
 
 ## 恢复步骤
 
-1. 新建一个 Codex Desktop 任务，提交一条不含敏感内容的提示，并执行一个本地 shell/tool。
-2. 仅当 `SessionStart`、`UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`Stop` 五类 AFR 探针文件齐全时勾选 D0-01。
+1. 完全退出并重新启动 Codex Desktop。
+2. 新建一个 Codex Desktop 任务，提交一条不含敏感内容的提示，并执行一个本地 shell/tool。
+3. 仅当 `SessionStart`、`UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`Stop` 五类 AFR 探针文件齐全时勾选 D0-01。
 
 未满足恢复条件前，不改用私有日志、UI 轮询、transcript 解析或 manifest override 绕过停止门。
