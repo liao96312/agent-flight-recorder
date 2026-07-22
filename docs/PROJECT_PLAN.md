@@ -40,7 +40,7 @@
 | 首个验收 Agent | `codex exec` 已完成真实包装与 verify 冒烟 | 每次正式发布复验 |
 | Claude Code 验收 | strict validator、加载、生命周期及 OpenRouter 认证的 `/afr:afr` 实调用已通过 | `REL-02` 已完成；免费子模型输出质量不作为 AFR 功能断言 |
 | 会话保留 | 不后台删除；文档可建议 30 天，实际删除必须显式运行 `clean` 并给出条件 | 20 次真实会话后复盘 |
-| 插件 hooks | 明确不进入 v0.1；只有 20 次会话评审证明 wrapper 的语义缺口反复阻碍复核才启动 | `DEC-01` |
+| Codex Desktop hooks | 不进入 v0.1；产品负责人于 2026-07-22 明确要求适配桌面端当前任务，先执行有停止门的最小 D0 切片 | `D0-01` 探针通过后才进入 D0-02..D0-06；更广 hooks 仍由 `DEC-01` 控制 |
 
 ## 2. 审读结论
 
@@ -93,7 +93,7 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 | workspace `.afr.json` 可添加 RE2 脱敏规则 | 严格 schema 在 session/child 启动前解析并编译 | `M2-07 [P1]` 已完成，无效规则 fail-closed |
 | Unix 终止整个进程组并提供 Linux/macOS 版本 | 共享孙进程测试及 Ubuntu/macOS 的 go test/build/run/verify 已通过 | `M0-15` 与 `R0-05` 已完成；非 Windows 仍标 beta |
 | `afr report` 可重建派生报告 | 当前只在 `run` 收尾自动生成报告 | `M3-10` 降为 P2；20 次评审证明需要重建时再做 |
-| replay、原生 hooks、Dify / 团队分析 | 均未实现 | 保持暂缓；只能由 `DEC-01` 的真实数据启动，不因原方案列出就提前建设 |
+| replay、Claude/Hosted tools hooks、Dify / 团队分析 | 均未实现 | 保持暂缓；Codex Desktop 最小 hook 切片按明确需求提前，其他方向仍只能由 `DEC-01` 启动 |
 
 本轮删除未进入实现和 TODO 的 `--summary-json` 过期承诺；`show --open` 不属于 v0.1 发布门槛，后续已作为独立 P1 交付。原方案的“证据等级”继续按能力矩阵表达；`verify.json`、自动 replay、OS 级文件/网络观测仍不伪装为已交付。
 
@@ -157,7 +157,7 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 ### 4.3 推迟
 
 - `afr replay` 与 `replay.plan.json`：没有真实复核数据前不建设。
-- Codex/Claude Code 当前交互会话的自动 hook 采集。
+- Claude Code、Hosted tools 与安装前历史对话的自动 hook 采集。
 - 原生 Agent JSONL 适配器。
 - Dify、团队聚合、搜索索引、签名见证。
 
@@ -480,14 +480,13 @@ skill 只做四件事：
 
 候选版实测状态：Codex marketplace 发现、安装、真实 `afr run -- codex exec ...` 和 session verify 已通过；Claude Code strict validator、`--plugin-dir`、插件生命周期及 OpenRouter Anthropic-compatible API 认证下的 `/afr:afr` 调用同一 `afr` 均已通过。Claude session `20260722T014003.862517200Z-9a4b7bb5330396fc02df94db` 为 completed/exit 0、工作区改动 0，verify 为 7 events / 6 evidence / 3 derived。免费子模型未遵循精确短语要求，只记录为模型质量现象，不影响宿主、插件、进程和证据链路验收。
 
-### 11.2 v0.2：hook 原生事件
+### 11.2 v0.2：Codex Desktop hook 原生事件
 
-只有真实用户证明 wrapper 模式不够时再增加：
+产品负责人已明确当前桌面任务必须可记录；先实现 Codex Desktop 最小切片，详细顺序与停止门见 `TODO.md` 的 D0-01..D0-06：
 
 ```text
 plugins/afr/
   hooks/hooks.json              Codex 默认 hook 文件
-  hooks/hooks.claude.json       Claude Code 特有结束事件（如需要）
 ```
 
 约束：
@@ -496,8 +495,9 @@ plugins/afr/
 - Codex 没有等价的可靠 SessionEnd 时，不把 turn `Stop` 伪装成 session completed；只标记 idle/finalizable。
 - 多个 hooks 可能并发启动；`afr hook` 必须用会话锁串行分配 seq/hash。
 - 最小并发方案是会话内 O_EXCL 锁文件、短超时和受控陈旧锁恢复；吞吐成为瓶颈后才引入单写者进程。
-- 父 wrapper 启动宿主时可设置经校验的 `AFR_SESSION_ID`，hook 事件并入同一会话，避免 L1/L2 双会话。
+- hook-only 模式用正式 `session_id` 映射 AFR session，不依赖父 wrapper；wrapper 模式保持不变，两者不得生成双会话。
 - 插件 hook 需要用户信任；报告必须记录 hook 是否安装、启用、受信和实际触发。
+- 不解析不稳定的 `transcript_path`，不追溯安装/信任前历史，不把 Hosted tools 冒充为已观测。
 
 Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin validator 对 manifest 中显式 `hooks` 字段存在版本差异，因此首选默认文件，不在 Codex manifest 中写 override，直到目标版本验证通过。
 
@@ -563,7 +563,7 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 | P1 可用性 | 已完成 | 0 | `show --open`、ignore、自定义 RE2 | 三项均独立测试、提交和 CI，不捆绑大版本 |
 | OBS 公开试用 | 未开始 | 事件驱动，直到 20 次 | 真实 Codex/Claude 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
 | DEC 数据门 | 未开始 | 半天 | 对证据缺口、性能、复核价值做决策 | `DEC-01` 明确“只做一个方向”或“保持现状” |
-| M4 原生 hooks | 条件性暂缓 | 触发后约 1–2 周 | `afr hook`、并发锁、宿主事件映射 | 只有 `DEC-01` 证明 wrapper 语义缺口反复阻碍复核才启动 |
+| M4a Codex Desktop hooks | 已激活，尚未实施 | 先做 D0-01 探针；通过后再估时 | `afr hook`、hook-only session、并发锁、Desktop E2E | D0-01 实机触发正式事件；D0-06 当前任务无需嵌套 CLI 且 verify 通过 |
 | M5 团队增强 | 条件性暂缓 | 数据驱动 | 签名见证、索引、Dify/团队分析 | 有真实使用数据、明确责任人和合规边界 |
 
 ### 13.1 两周停止门槛
@@ -586,8 +586,9 @@ M1 结束时必须能稳定回答：
 | 4 | ✅ `M3-09`、`M1-11`、`M2-07` | 发布门槛暂停期间已逐项完成；每项单独提交 | 浏览器打开、ignore 和配置失败验收及三平台 CI 分别通过 |
 | 5 | ✅ `REL-04` 最终候选检查 | 已完成 | 完整 release-check 通过；脚本断言二进制版本、内嵌 commit、release notes 与当前 HEAD 一致，并复算 SHA-256 |
 | 6 | ✅ `REL-05` tag + GitHub Release；✅ `REL-06` 回下载 / 公共安装复验 | 已完成 | 公开附件可下载、校验一致，Codex 公开安装与 Claude tag 插件发现通过 |
-| 7 | `R0-09` 20 次真实会话 | 当前下一项；不建设遥测 | 每次记录 version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿，可区分期间的补丁版 |
-| 8 | `DEC-01` 数据门 | 依赖完整 20 次记录 | 形成 ADR：只启动一个证据最强的方向，或明确保持 wrapper；不得一次启动 hooks、Dify、索引和签名 |
+| 7 | `D0-01` → `D0-06` Codex Desktop 当前任务接入 | 当前下一项，严格串行 | 实机探针先行；不嵌套 CLI 的两轮桌面 E2E、idle 报告和 verify 通过 |
+| 8 | `R0-09` 20 次真实会话 | 依赖 D0-06；不建设遥测 | 每次记录 capture mode/version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿 |
+| 9 | `DEC-01` 数据门 | 依赖完整 20 次记录 | 形成 ADR：只启动一个证据最强的后续方向，或明确保持现状；不得同时扩建多个方向 |
 
 独立环境等外部门槛等待期间不得用 CI 或开发机证据替代，也不得在人工验收未通过时提前打正式 tag。
 
