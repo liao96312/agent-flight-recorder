@@ -75,7 +75,21 @@ generated/*.tmp
 
 Windows 分隔符 `\` 会统一为 `/`。非法模式会在 child 启动前失败。它不是完整 `.gitignore`，不支持 `!` 取反、递归 `**` 或父目录配置发现。
 
-## 5. 预览并清理
+## 5. 可选：添加项目脱敏规则
+
+工作区根目录 `.afr.json` 只接受以下严格 schema：
+
+```json
+{
+  "redaction_rules": [
+    {"name": "acme_id", "type": "regex", "pattern": "ACME-[0-9]{4}"}
+  ]
+}
+```
+
+`name` 必须匹配 `[a-z][a-z0-9_]{0,63}` 且不能重名；`type` 目前只能是 `regex`；`pattern` 使用 Go RE2 且不能匹配空字符串。配置最大 1 MiB。错误 JSON、未知字段、重名、错误类型或无效正则都会在 child 启动前失败；配置不支持代码或自定义 replacement。
+
+## 6. 预览并清理
 
 清理默认只预览，不会后台自动执行：
 

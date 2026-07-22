@@ -105,6 +105,20 @@ generated/*.tmp
 
 普通路径是相对工作区根目录的路径前缀。包含 `*`、`?` 或 `[` 的模式在把 `\` 统一为 `/` 后使用 Go `path.Match` 规则，因此 `*.log` 只匹配工作区根目录。非法模式会在 child 启动前终止 `afr run`。这不是完整 `.gitignore`：不支持取反、递归 `**` 或向父目录查找配置。
 
+### 添加工作区脱敏规则
+
+在工作区根目录 `.afr.json` 中添加严格、纯数据的 RE2 规则：
+
+```json
+{
+  "redaction_rules": [
+    {"name": "acme_id", "type": "regex", "pattern": "ACME-[0-9]{4}"}
+  ]
+}
+```
+
+名称必须匹配 `[a-z][a-z0-9_]{0,63}`，且不能与内置或其他自定义规则重名。唯一支持的类型是 `regex`，由 Go RE2 引擎实现。未知字段、错误 JSON、可匹配空字符串的模式和无效正则都会在 child 启动前终止 `afr run`。配置不能执行代码，也不能自定义替换内容。
+
 ## Codex 与 Claude Code 插件
 
 共享插件根位于 [`plugins/afr`](plugins/afr)。它会检查本地 CLI、启动一个**新的被记录任务**，并帮助查看或校验已有 session；它不能追溯当前对话。

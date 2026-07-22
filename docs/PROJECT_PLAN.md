@@ -90,7 +90,7 @@ L3 可以在没有 L2 时与 L1 组合，因此它不是严格等级。报告改
 | HTML 提供可筛选的完整时间线 | 已提供有界、已脱敏的 seq 时间线，最多 1,000 行 | `M3-22 [P0]` 已完成；10 万事件 fixture 通过 |
 | 一条命令定位并打开报告 | `show --open` 已通过独立 argv 调用平台原生打开命令 | `M3-09 [P1]` 已完成，不阻塞 v0.1.0 发布 |
 | 非 Git 扫描支持有限 `.afrignore` | 根配置在 child 启动前加载一次，支持路径前缀和 Go `path.Match` | `M1-11 [P1]` 已完成，明确不冒充完整 gitignore |
-| workspace `.afr.json` 可添加 RE2 脱敏规则 | 当前只有内置 detector，没有配置加载 | `M2-07 [P1]`，无效规则必须在 child 启动前失败 |
+| workspace `.afr.json` 可添加 RE2 脱敏规则 | 严格 schema 在 session/child 启动前解析并编译 | `M2-07 [P1]` 已完成，无效规则 fail-closed |
 | Unix 终止整个进程组并提供 Linux/macOS 版本 | 共享孙进程测试及 Ubuntu/macOS 的 go test/build/run/verify 已通过 | `M0-15` 与 `R0-05` 已完成；非 Windows 仍标 beta |
 | `afr report` 可重建派生报告 | 当前只在 `run` 收尾自动生成报告 | `M3-10` 降为 P2；20 次评审证明需要重建时再做 |
 | replay、原生 hooks、Dify / 团队分析 | 均未实现 | 保持暂缓；只能由 `DEC-01` 的真实数据启动，不因原方案列出就提前建设 |
@@ -418,7 +418,7 @@ L1 的 before/after 只能证明工作区内变化。只有命令参数或原生
 - 二进制或未知编码：只保存字节数、会话级 HMAC 指纹、MIME/判定原因。
 - 单条逻辑记录超过安全上限：不保存正文，只保存 omitted marker。
 - 多行私钥等跨行模式：在有界记录缓冲中完整检测。
-- 当前候选版只使用内置 detector；`M2-07` 的自定义正则使用 Go RE2，加载时编译，无效规则必须在启动 child 前使配置失败。
+- 内置 detector 始终启用；工作区根 `.afr.json` 可增加具名 `regex` 规则。自定义正则使用 Go RE2，加载时编译；未知字段、重名、内置名冲突、空匹配和无效正则都在 session/child 启动前使配置失败。
 - redaction 占位符使用会话内 HMAC 关联前缀，HMAC key 不写盘。
 - 未持久化的原始流或 Diff 只保存会话级 HMAC 指纹，不保存可被低熵字典枚举的裸 SHA-256；manifest 的 SHA-256 只校验已经脱敏并实际存储的制品。
 
@@ -557,10 +557,10 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 | Phase 0 契约冻结 | 已完成 | 0 | 威胁模型、能力矩阵、事件/manifest、CLI、退出码、fixture | 关键 JSON 示例和黄金哈希向量评审通过 |
 | M0 记录闭环 | 已完成并通过三平台 CI | 0 | run、会话、输出泵、退出/取消、incomplete、进程树 | Windows、Ubuntu、macOS 路径均通过 |
 | M1 工作区证据 | 已完成 | 0 | Git before/after/delta、非 Git 扫描、容量预算、有限 `.afrignore` | P0 与 `M1-11` 验收均通过 |
-| M2 安全证据 | 核心已完成 | P1 约 1 天 | 统一脱敏、规则、哈希链、manifest、verify | workspace 自定义 RE2 由 `M2-07` 补齐 |
+| M2 安全证据 | 已完成 | 0 | 统一脱敏、内置与自定义 RE2 规则、哈希链、manifest、verify | P0 与 `M2-07` 验收均通过 |
 | M3 候选版 | 候选代码、报告时间线和运行摘要已完成 | 0 | 报告、CLI、Windows 包、薄插件 | `M3-22`、`M3-23` 与既有安全门槛均通过 |
 | R0 正式发布 | 未完成 | P0 约 1 天 + 两项人工/外部门槛 | License、Claude 实调用、干净 VM、tag、Release、回下载 | `REL-01` 至 `REL-06` 全部有证据 |
-| P1 可用性 | 进行中（open、ignore 已完成） | 约 1 天 | `show --open`、ignore、自定义 RE2 | 每项独立测试与文档通过，不捆绑大版本 |
+| P1 可用性 | 已完成 | 0 | `show --open`、ignore、自定义 RE2 | 三项均独立测试、提交和 CI，不捆绑大版本 |
 | OBS 公开试用 | 未开始 | 事件驱动，直到 20 次 | 真实 Codex/Claude 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
 | DEC 数据门 | 未开始 | 半天 | 对证据缺口、性能、复核价值做决策 | `DEC-01` 明确“只做一个方向”或“保持现状” |
 | M4 原生 hooks | 条件性暂缓 | 触发后约 1–2 周 | `afr hook`、并发锁、宿主事件映射 | 只有 `DEC-01` 证明 wrapper 语义缺口反复阻碍复核才启动 |
@@ -583,7 +583,7 @@ M1 结束时必须能稳定回答：
 | 1 | ✅ `M3-22` HTML 有界事件时间线；`M3-23` 完整运行摘要 | 已完成 | 10 万事件 fixture、固定六行摘要、child stdout 不污染和三平台 CI 均通过 |
 | 2 | ✅ `REL-01` MIT License | 已完成 | 根 License、README、插件 manifest 与发布说明一致 |
 | 3 | ⏸ `REL-02` 已登录 Claude `/afr:afr`；`REL-03` 独立干净 Windows VM | 产品负责人于 2026-07-22 暂时搁置 | 保持未完成，不用 validator、CI 或开发机替代人工证据 |
-| 4 | `M3-09`、`M1-11`、`M2-07` | 发布门槛暂停期间逐项提前；每项单独提交 | 分别通过浏览器打开、ignore 和配置失败验收 |
+| 4 | ✅ `M3-09`、`M1-11`、`M2-07` | 发布门槛暂停期间已逐项完成；每项单独提交 | 浏览器打开、ignore 和配置失败验收及三平台 CI 分别通过 |
 | 5 | `REL-04` 最终候选检查 | 依赖顺序 3 恢复并完成 | 从最终 `main` commit 运行完整 release-check，CI、版本、SHA-256 和 release notes 指向同一 commit |
 | 6 | `REL-05` tag + GitHub Release；`REL-06` 回下载 / 公共安装复验 | 严格串行 | 公开附件可下载、校验一致、快速开始能从零复现 |
 | 7 | `R0-09` 20 次真实会话 | `REL-06` 后立即开始；不建设遥测 | 每次记录 version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿，可区分期间的补丁版 |
@@ -595,7 +595,7 @@ M1 结束时必须能稳定回答：
 
 - 使用 Go reproducible build 信息，`afr version` 输出版本、commit、构建时间、format version。
 - Windows x64 候选 exe 与校验和已经生成；项目采用 MIT License，只有 `REL-02` 至 `REL-06` 通过后才能称为 v0.1.0 正式公开发布。代码签名作为企业增强，不伪装已有签名。
-- 目标配置优先级固定为 CLI flags > workspace `.afr.json` > defaults；当前 `.afr.json` 尚未实现，`M2-07` 完成前不得在安装文档中声称可配置。
+- 配置优先级固定为 CLI flags > workspace `.afr.json` > defaults；当前 `.afr.json` 仅提供严格的工作区自定义 RE2 脱敏规则，没有用户层或组织层配置。
 - 会话目录默认位于用户主目录 `.afr/sessions`，继承/设置仅当前用户访问权限。
 - 没有后台自动清理；用户显式运行 `clean`。
 - schema 或哈希格式升级必须保留旧版本只读 verify，不能静默重写旧证据。
