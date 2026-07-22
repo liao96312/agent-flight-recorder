@@ -36,6 +36,6 @@
 
 1. 将缺失 `Stop` 记录为当前 Codex Desktop 包的宿主能力缺口。
 2. 不实施依赖完整五事件契约的 D0-02..D0-06。
-3. 项目继续使用已发布的 CLI wrapper 和 Claude Code skill 进入真实会话验证；不把 Desktop 四事件探针包装成不完整产品。
+3. 删除插件默认 Hook 和探针脚本，不随正式插件交付；项目继续使用已发布的 CLI wrapper 和 Claude Code skill 进入真实会话验证。
 
 除非后续 Desktop 版本明确可重复触发 `Stop`，否则不重开 D0；不改用私有日志、UI 轮询、transcript 解析或 manifest override 绕过停止门。
