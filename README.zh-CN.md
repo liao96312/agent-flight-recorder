@@ -84,6 +84,7 @@ $afr = '.\dist\afr-windows-amd64.exe'
 ```powershell
 & $afr list
 & $afr show latest
+& $afr show --open latest
 & $afr verify latest
 & $afr clean --older-than 30d       # 只预览
 & $afr clean --older-than 30d --yes # 删除已确认目标

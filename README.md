@@ -84,6 +84,7 @@ Inspect and verify the latest session:
 ```powershell
 & $afr list
 & $afr show latest
+& $afr show --open latest
 & $afr verify latest
 & $afr clean --older-than 30d       # preview only
 & $afr clean --older-than 30d --yes # delete the reviewed targets
