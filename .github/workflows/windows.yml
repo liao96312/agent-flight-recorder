@@ -73,3 +73,7 @@ jobs:
           $missingOutput = @(& $candidate run --workspace $workspace -- afr-agent-does-not-exist 2>&1)
           if ($LASTEXITCODE -ne 70) { throw "missing agent exited $LASTEXITCODE instead of 70" }
           if (($missingOutput -join "`n") -notmatch 'AFR_RUNTIME:') { throw 'missing agent did not return an AFR_RUNTIME error' }
+
+          Write-Host ($verifyOutput -join "`n")
+          Write-Host 'clean Windows artifact acceptance passed'
+          exit 0
