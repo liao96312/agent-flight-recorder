@@ -42,6 +42,24 @@ func TestRunRequiresArgvSeparator(t *testing.T) {
 	}
 }
 
+func TestHookFailsOpenOnBadInput(t *testing.T) {
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = write.Close()
+	original := os.Stdin
+	os.Stdin = read
+	t.Cleanup(func() {
+		os.Stdin = original
+		_ = read.Close()
+	})
+	t.Setenv("PLUGIN_DATA", "")
+	if code := hookCommand([]string{"--host", "codex"}); code != 0 {
+		t.Fatalf("exit code = %d, want fail-open 0", code)
+	}
+}
+
 func TestShowOptions(t *testing.T) {
 	asJSON, openReport, selector, err := parseShowSelector([]string{"--open", "session-1"})
 	if err != nil || asJSON || !openReport || selector != "session-1" {

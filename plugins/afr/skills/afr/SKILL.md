@@ -5,7 +5,15 @@ description: Record a new non-interactive Codex or Claude Code task with the loc
 
 # Agent Flight Recorder
 
-Use the `afr` executable as a thin local wrapper. AFR records only a **new child task** launched through `afr run`; it cannot retroactively capture the current conversation or an already-running agent session.
+Use the `afr` executable as the single recorder. Trusted Codex Desktop hooks automatically record future turns after plugin installation and a full Desktop restart. AFR never retroactively imports earlier messages. `afr run` remains the explicit wrapper for new non-interactive Codex or Claude Code child tasks.
+
+## Codex Desktop capture
+
+- The plugin sends `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, and `Stop` to `afr hook --host codex`.
+- `resume` and `compact` reuse the mapped AFR session; `startup` and `clear` switch according to the host lifecycle.
+- `Stop` creates an `idle` checkpoint and refreshes the report; it is not a reliable SessionEnd and must not be described as `completed`.
+- Desktop capture starts only after the plugin is installed, trusted in `/hooks`, and the Desktop app is fully restarted. A resumed task records only later turns.
+- Hosted tools that do not emit local Hook events remain `not_observable`.
 
 ## Before running
 

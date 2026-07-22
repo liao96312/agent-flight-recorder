@@ -1,0 +1,66 @@
+{
+  "description": "Record trusted Codex Desktop lifecycle events with Agent Flight Recorder.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afr hook --host codex",
+            "commandWindows": "afr.exe hook --host codex",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afr hook --host codex",
+            "commandWindows": "afr.exe hook --host codex",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afr hook --host codex",
+            "commandWindows": "afr.exe hook --host codex",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afr hook --host codex",
+            "commandWindows": "afr.exe hook --host codex",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afr hook --host codex",
+            "commandWindows": "afr.exe hook --host codex",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -2,7 +2,7 @@
   "name": "afr",
   "version": "0.1.0",
   "license": "MIT",
-  "description": "Record, inspect, and verify local coding-agent runs with the Agent Flight Recorder CLI.",
+  "description": "Record Codex Desktop turns and wrapped coding-agent runs with the Agent Flight Recorder CLI.",
   "author": {
     "name": "liao96312",
     "url": "https://github.com/liao96312"
@@ -13,7 +13,7 @@
   "interface": {
     "displayName": "Agent Flight Recorder",
     "shortDescription": "Record and verify coding-agent runs.",
-    "longDescription": "Launch a new Codex or Claude Code task through the local AFR CLI, then inspect and verify its evidence report.",
+    "longDescription": "Record trusted Codex Desktop lifecycle hooks or launch a new Codex or Claude Code task through the local AFR CLI, then inspect and verify its evidence report.",
     "developerName": "liao96312",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],

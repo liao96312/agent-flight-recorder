@@ -476,16 +476,16 @@ group v0.1：skill 只启动新的 wrapper 会话
   end
 end
 
-group v0.2：只有真实证据缺口触发 Hook
+group v0.2：Codex Desktop 当前任务 Hook
   Host -> Hooks : SessionStart / Prompt / Tool / Permission / Stop
-  Hooks -> HookCLI : 正式 JSON stdin\n继承或映射 AFR_SESSION_ID
+  Hooks -> HookCLI : 正式 JSON stdin\n校验 session_id / AFR_SESSION_ID
   HookCLI -> HookCLI : 脱敏 + 会话锁 + seq/hash
   HookCLI -> Store : 追加 native event
   HookCLI --> Hooks : exit 0 / stdout empty\n记录失败默认 fail-open
 
   alt 外层 wrapper 已设置合法 AFR_SESSION_ID
     note over HookCLI,Store
-      L2 事件并入同一 L1 会话，
+      Hook 静默退出；wrapper 保持唯一证据源，
       不产生重复 session。
     end note
   else plugin-only 当前会话

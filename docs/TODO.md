@@ -3,7 +3,7 @@
 > 与 [PROJECT_PLAN.md](./PROJECT_PLAN.md) 同步维护。任务只有在“验收”可重复通过后才能勾选。
 > 优先级：P0 发布阻塞；P1 正式可用增强；P2 有真实需求后再做。
 > 估算假设：1 名全职开发者，Windows x64 为 v0.1 发布平台。
-> 当前基线：v0.1.0 已公开发布并完成回下载复验；CLI wrapper、Claude Code skill 和三项 P1 可用性增强已完成。Codex Desktop D0 切片因目标版本不触发 `Stop` 已按停止门终止。
+> 当前基线：v0.1.0 已公开发布并完成回下载复验；CLI wrapper、Claude Code skill 和三项 P1 可用性增强已完成。Codex Desktop 同一 session 已补充获得三次 `Stop`，D0-01 重开通过，正式接入进行中。
 
 ## 0. 当前状态
 
@@ -31,8 +31,8 @@
 | 4 | ✅ `M3-09` → `M1-11` → `M2-07` | 已逐项完成；均为 P1 | 独立提交、测试和三平台 CI 通过 |
 | 5 | ✅ `REL-04` | 已完成 | 完整 release-check、CI、版本、commit、release notes 和 SHA 一致 |
 | 6 | ✅ `REL-05`；✅ `REL-06` | 已完成 | `v0.1.0` 公开 Release、回下载与公共安装复验均通过 |
-| 7 | ⛔ `D0-01`；不实施 `D0-02` → `D0-06` | Desktop 连续两个 turn 转换均缺 `Stop`，停止门未通过 | 后续 Desktop 版本明确可重复触发五类事件时另行重开 |
-| 8 | `R0-09` | 无；使用已发布 wrapper / Claude Code skill | 完成 20 条本地真实会话评审，capture mode 记录为 `wrapper` |
+| 7 | ✅ `D0-01` → `D0-04`；`D0-05` → `D0-06` | 正式代码与合成 Windows 冒烟通过；等待 cachebuster/reinstall/restart | 当前 Desktop 任务连续两轮产生同一可验证 AFR session |
+| 8 | `R0-09` | 无；D0-06 后增加 `desktop_hook` 样本 | 完成 20 条本地真实会话评审，区分 `wrapper` / `desktop_hook` |
 | 9 | `DEC-01` | `R0-09` | 只选择一个有重复证据的方向，或明确保持现状 |
 
 ## 1. Phase 0：契约冻结（2 天）
@@ -439,7 +439,7 @@
   - 验收：完整收尾时在 stderr 固定输出六行：`Session: <id>`；`Evidence: observed=<排序 capability CSV>; not_observable=<排序 capability CSV>; truncated=<bool>`；`Changed: added=N modified=N deleted=N renamed=N pre_existing=N`；`Risks: total=N highest=<severity>`；`Exit: child=<code> state=<state>`；`Report: <绝对 report.html 路径>`。值与最终报告一致，不使用 L1/L2/L3；child stdout 逐字节不变，child stderr 不丢失；AFR 收尾失败仍保留稳定错误前缀和 session 路径。
   - 结果：精确格式测试、`RunResult` 集成测试、WSL 实际 CLI 冒烟和三平台 CI 通过。
 
-## 6. M4a：Codex Desktop 当前任务接入（停止门未通过，不实施）
+## 6. M4a：Codex Desktop 当前任务接入（进行中，v0.2）
 
 产品负责人于 2026-07-22 明确要求记录 Codex Desktop 当前任务，因此以下桌面端最小切片不再等待 `R0-09 / DEC-01`。目标是插件通过 Codex 官方 lifecycle hooks 记录**安装并信任之后的新桌面任务与后续 turn**，不再嵌套启动 `codex exec`。规范依据：<https://learn.chatgpt.com/docs/hooks>。
 
@@ -451,34 +451,37 @@
 - Hosted WebSearch 等不经过本地 function-tool hook 的路径保持 `not_observable`；只有实际收到 hook 事件后才把对应 native capability 标为 `observed`。
 - 本切片不做 Claude hooks、MCP、daemon、遥测、远端上传或历史聊天导入；这些只能由后续真实会话证据单独触发。
 
-- [ ] **D0-01 [P0] Codex Desktop 实机 hook 契约探针（停止门）**
+- [x] **D0-01 [P0] Codex Desktop 实机 hook 契约探针（停止门）**
   - 依赖：v0.1.0 已发布；目标 Codex Desktop 版本可安装本地 AFR 插件。
   - 验收：使用插件默认 `hooks/hooks.json`，经 `/hooks` 审阅并信任后新建桌面任务；以不含用户正文/secret 的本地探针确认 `SessionStart`、`UserPromptSubmit`、至少一个本地 `PreToolUse/PostToolUse` 与 `Stop` 实际触发，记录 Desktop/CLI/plugin 版本、正式字段名和未覆盖事件。
   - 停止：上述四类事件任一缺失，或桌面端不加载 plugin-bundled hooks，则暂停 D0-02..D0-06，保留探针证据并报告；不得转而抓私有日志、轮询 UI 或解析不稳定 transcript。
-  - 2026-07-22 结果：CLI 五事件契约通过；Desktop 完整重启后实际触发 `SessionStart(resume/compact)`、`UserPromptSubmit`、`PreToolUse/PostToolUse`，但连续两个 turn 转换均未触发 `Stop`。停止门未通过，证据见 `D0-01-HOOK-PROBE.md`。
-  - 决定：D0-02..D0-06 不实施；后续 Desktop 版本明确可重复触发五类事件时另行重开，不在当前版本继续试探。
+  - 2026-07-22 结果：CLI 五事件契约通过；Desktop 同一 session 实际触发 `SessionStart(resume/compact)`、`UserPromptSubmit`、`PreToolUse/PostToolUse`，并在后续三个普通 turn 重复触发 `Stop`。早期两个缺失保留为异常证据，停止门按补充实证重开通过，详见 `D0-01-HOOK-PROBE.md`。
 
-- [ ] **D0-02 [P0] 冻结 hook-only session 与状态映射（停止，不实施）**
+- [x] **D0-02 [P0] 冻结 hook-only session 与状态映射**
   - 依赖：D0-01。
   - 验收：Codex `session_id` 经格式/长度校验后映射到一个 AFR session；映射索引只放在 `PLUGIN_DATA`，证据仍放 `.afr/sessions`。`startup` 新建，`resume/compact` 复用，`clear` 切换；`Stop` 只写 `idle` 并刷新报告，下一 turn 继续同一 session。
   - 边界：不依赖父 wrapper 或 `AFR_SESSION_ID`；wrapper 模式保持原行为，两种入口不得生成双会话。
+  - 结果：host ID 仅以 SHA-256 指纹写入 `PLUGIN_DATA` 映射；fingerprinter key 与 AFR session ID 留在映射索引。`resume/compact` 复用、`startup/clear` 切换；wrapper 给子进程注入合法 `AFR_SESSION_ID`，Hook 静默退出避免双会话。
 
-- [ ] **D0-03 [P0] 实现最小 `afr hook --host codex` 摄取入口（停止，不实施）**
+- [x] **D0-03 [P0] 实现最小 `afr hook --host codex` 摄取入口**
   - 依赖：D0-02、M2 脱敏与完整性链。
   - 验收：从 stdin 读取不超过 1 MiB 的正式 hook JSON；只白名单映射 Session、prompt、local tool、permission、subagent 与 stop 元数据，未知对象只记录类型、大小、hash 和 omitted 原因；所有内容复用现有 redactor 后才写盘。
   - 验收：正常 stdout 为空，不向模型注入文本；错误使用稳定前缀且默认 fail-open，不阻断桌面任务。不得读取 `transcript_path` 内容。
+  - 结果：已实现 1 MiB 上限、正式五事件白名单、未知字段 type/size/SHA-256 omission、统一 redactor、`AFR_HOOK:` fail-open 和 transcript 忽略；两轮 Windows 合成 Hook 形成 10 events / 6 evidence / 3 derived 并 verify 通过。
 
-- [ ] **D0-04 [P0] 保证多进程追加写完整性（停止，不实施）**
+- [x] **D0-04 [P0] 保证多进程追加写完整性**
   - 依赖：D0-03、M0-06。
   - 验收：每个 AFR session 使用 O_EXCL 锁、短重试及带 PID/time 的 owner；只对明确陈旧且同 session 的锁做受控恢复。20 个并发合成 hook 事件无重复 seq、无坏 JSON，最终 `afr verify` 通过。
   - 边界：hook handler 超时设置为 5 秒；锁方案未出现可复现瓶颈前不建设单写者或 daemon。
+  - 结果：按 host session 指纹使用 O_EXCL 锁、PID/time owner、30 秒且进程已退出才恢复；20 个并发 Hook 自测最终 24 events 且 verify 通过。CLI 锁等待和 workspace scan 各限制 2 秒，超预算 fail-open/partial。
 
-- [ ] **D0-05 [P0] 打包 Codex Desktop hooks 与可见能力报告（停止，不实施）**
+- [ ] **D0-05 [P0] 打包 Codex Desktop hooks 与可见能力报告**
   - 依赖：D0-03、D0-04。
   - 验收：插件根默认 `hooks/hooks.json` 使用 command/`commandWindows` 调用同一 `afr hook --host codex`，不复制存储、脱敏、hash 或报告逻辑；安装/升级后必须重新通过 `/hooks` 信任检查，未信任时 UI 与 AFR 报告均不得宣称已覆盖。
   - 验收：报告列出实际触发事件、hook 版本、host session 指纹和缺口；plugin disable/remove 不删除或改写既有 `.afr/sessions`。
+  - 2026-07-22 状态：正式 `hooks/hooks.json`、skill 边界、插件 validator、Go 全量测试与 Windows 合成冒烟已通过；待 cachebuster、重装、`/hooks` 信任复核和 Desktop 完整重启。
 
-- [ ] **D0-06 [P0] Codex Desktop 当前任务 E2E（停止，不实施）**
+- [ ] **D0-06 [P0] Codex Desktop 当前任务 E2E**
   - 依赖：D0-01..D0-05。
   - 验收：在 Codex Desktop 新任务中连续完成两轮 prompt，覆盖一个本地 shell/tool 调用和一次文件编辑；全程不启动嵌套 `codex exec`。两次 `Stop` 后仍指向同一 AFR session，状态为 `idle`，工作区 delta、风险、事件时间线和 `afr verify` 一致。
   - 验收：重启/恢复桌面任务不新建重复 session；禁用 hook 后不再增加 native events，旧 session 仍可 show/verify。记录 Desktop、AFR、插件版本、host session 指纹、AFR session ID、事件覆盖与复盘结果。
@@ -602,10 +605,11 @@ F0 契约
   -> REL-02 Claude Code 真实 skill 冒烟（已完成）
   -> REL-04 最终候选一致性检查（已完成）
       -> REL-05..REL-06 正式 v0.1.0 发布（已完成）
-      -> [停止] D0-01 Desktop hook 探针（Desktop 缺 Stop；D0-02..D0-06 不实施）
-      -> R0-09 二十次 wrapper / Claude skill 真实会话（逐条记录 capture mode/version/commit）
+      -> D0-01..D0-04 Desktop hook 契约与内核（已完成）
+          -> D0-05..D0-06 正式插件重装与当前任务 E2E
+      -> R0-09 二十次 wrapper / desktop_hook / Claude skill 真实会话（逐条记录 capture mode/version/commit）
           -> DEC-01 单方向数据门
               -> [仅证据触发] M4 hooks / 其他一个扩展方向
 ```
 
-M1 与正式发布门槛已经通过。`D0-01` 的 CLI 契约通过，但 Desktop 完整重启后连续两个 turn 转换均缺 `Stop`，因此 `D0-02..D0-06` 不实施。`R0-09` 改用已发布 wrapper / Claude skill 收集 20 次真实会话；没有重复证据前，不扩展 Desktop hooks、Claude hooks、Hosted tools 适配、历史导入、Dify、索引、签名或团队后台。
+M1 与正式发布门槛已经通过。`D0-01` 已由同一 Desktop session 的三次 `Stop` 补充证据重开通过，`D0-02..D0-04` 已完成，当前只推进 `D0-05..D0-06` 的正式插件与 E2E。`R0-09` 继续收集 20 次 wrapper / desktop_hook / Claude skill 真实会话；没有重复证据前，不扩展 Claude hooks、Hosted tools 适配、历史导入、Dify、索引、签名或团队后台。

@@ -98,8 +98,12 @@ func VerifySession(sessionRoot string) VerifyResult {
 		result.Issue = &VerificationIssue{Kind: "session", Code: "final_hash_mismatch", Path: "session.json", Message: "final event hash differs from event chain", Expected: metadata.FinalHash, Actual: inspection.FinalHash}
 		return result
 	}
-	if inspection.LastEventType != "session_finished" {
-		result.Issue = &VerificationIssue{Kind: "event", Code: "event_final_type", Seq: inspection.ValidEvents, Path: "events.jsonl", Message: "final event is not session_finished", Expected: "session_finished", Actual: inspection.LastEventType}
+	expectedFinal := "session_finished"
+	if metadata.State == "idle" {
+		expectedFinal = "turn_stopped"
+	}
+	if inspection.LastEventType != expectedFinal {
+		result.Issue = &VerificationIssue{Kind: "event", Code: "event_final_type", Seq: inspection.ValidEvents, Path: "events.jsonl", Message: "final event type does not match session state", Expected: expectedFinal, Actual: inspection.LastEventType}
 		return result
 	}
 

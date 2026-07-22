@@ -40,7 +40,7 @@
 | 首个验收 Agent | `codex exec` 已完成真实包装与 verify 冒烟 | 每次正式发布复验 |
 | Claude Code 验收 | strict validator、加载、生命周期及 OpenRouter 认证的 `/afr:afr` 实调用已通过 | `REL-02` 已完成；免费子模型输出质量不作为 AFR 功能断言 |
 | 会话保留 | 不后台删除；文档可建议 30 天，实际删除必须显式运行 `clean` 并给出条件 | 20 次真实会话后复盘 |
-| Codex Desktop hooks | 不进入 v0.1；产品负责人于 2026-07-22 明确要求适配桌面端当前任务，先执行有停止门的最小 D0 切片 | CLI 契约通过，但 Desktop 连续两个 turn 转换均缺 `Stop`；D0 切片已停止，后续版本具备完整契约时再评估 |
+| Codex Desktop hooks | 不进入 v0.1；产品负责人于 2026-07-22 明确要求适配桌面端当前任务，先执行有停止门的最小 D0 切片 | 同一 Desktop session 后续三轮均触发 `Stop`，D0-01 重开通过；D0-02..D0-04 已实现，等待正式插件重装与当前任务 E2E |
 
 ## 2. 审读结论
 
@@ -482,7 +482,7 @@ skill 只做四件事：
 
 ### 11.2 v0.2：Codex Desktop hook 原生事件
 
-产品负责人已明确当前桌面任务必须可记录，因此执行了 Codex Desktop 最小停止门探针。目标 Desktop 包能触发 session/prompt/tool 四类事件，但连续两个 turn 转换均未触发 `Stop`；D0-01 未通过，D0-02..D0-06 不实施。以下保留为未执行设计记录：
+产品负责人已明确当前桌面任务必须可记录，因此执行了 Codex Desktop 最小停止门探针。早期两个 turn 未观察到 `Stop`，但同一 Desktop session 随后三个普通 turn 均稳定触发五事件契约；D0-01 已按补充证据重开通过。D0-02..D0-04 已完成，D0-05..D0-06 等待正式插件重装与当前任务 E2E：
 
 ```text
 plugins/afr/
@@ -563,7 +563,7 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 | P1 可用性 | 已完成 | 0 | `show --open`、ignore、自定义 RE2 | 三项均独立测试、提交和 CI，不捆绑大版本 |
 | OBS 公开试用 | 进行中（2/20） | 事件驱动，直到 20 次 | 真实 Codex/Claude wrapper 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
 | DEC 数据门 | 未开始 | 半天 | 对证据缺口、性能、复核价值做决策 | `DEC-01` 明确“只做一个方向”或“保持现状” |
-| M4a Codex Desktop hooks | 已按停止门终止 | Desktop 连续两个 turn 转换均缺 `Stop` | 不实施 `afr hook`、hook-only session、并发锁和 Desktop E2E | 后续 Desktop 版本明确可重复触发五类事件时重开 |
+| M4a Codex Desktop hooks | 进行中；D0-01..D0-04 完成 | 正式插件重装与 Desktop 重启 | `afr hook`、hook-only session、并发锁、Desktop E2E | 当前任务两轮同 session、idle 报告和 verify 通过 |
 | M5 团队增强 | 条件性暂缓 | 数据驱动 | 签名见证、索引、Dify/团队分析 | 有真实使用数据、明确责任人和合规边界 |
 
 ### 13.1 两周停止门槛
@@ -586,8 +586,8 @@ M1 结束时必须能稳定回答：
 | 4 | ✅ `M3-09`、`M1-11`、`M2-07` | 发布门槛暂停期间已逐项完成；每项单独提交 | 浏览器打开、ignore 和配置失败验收及三平台 CI 分别通过 |
 | 5 | ✅ `REL-04` 最终候选检查 | 已完成 | 完整 release-check 通过；脚本断言二进制版本、内嵌 commit、release notes 与当前 HEAD 一致，并复算 SHA-256 |
 | 6 | ✅ `REL-05` tag + GitHub Release；✅ `REL-06` 回下载 / 公共安装复验 | 已完成 | 公开附件可下载、校验一致，Codex 公开安装与 Claude tag 插件发现通过 |
-| 7 | ⛔ `D0-01` Codex Desktop 当前任务接入 | Desktop 缺 `Stop`；D0-02..D0-06 不实施 | 后续 Desktop 版本具备可重复五事件契约时另行重开 |
-| 8 | `R0-09` 20 次真实会话 | 使用已发布 wrapper / Claude skill；不建设遥测 | 每次记录 capture mode/version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿 |
+| 7 | ✅ `D0-01` → `D0-04`；`D0-05` → `D0-06` Codex Desktop 当前任务接入 | 等待 cachebuster/reinstall/restart | 当前 Desktop 任务连续两轮写入同一 AFR session，idle 报告与 verify 一致 |
+| 8 | `R0-09` 20 次真实会话 | wrapper 继续可用；D0-06 后增加 desktop_hook | 每次记录 capture mode/version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿 |
 | 9 | `DEC-01` 数据门 | 依赖完整 20 次记录 | 形成 ADR：只启动一个证据最强的后续方向，或明确保持现状；不得同时扩建多个方向 |
 
 独立环境等外部门槛等待期间不得用 CI 或开发机证据替代，也不得在人工验收未通过时提前打正式 tag。

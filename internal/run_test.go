@@ -18,6 +18,10 @@ import (
 
 func TestRunRecordsOutputAndNonZeroExit(t *testing.T) {
 	if exitText := os.Getenv("AFR_TEST_EXIT"); exitText != "" {
+		if !ValidSessionID(os.Getenv("AFR_SESSION_ID")) {
+			fmt.Fprint(os.Stderr, "missing AFR_SESSION_ID")
+			os.Exit(99)
+		}
 		fmt.Fprint(os.Stdout, "hello stdout")
 		fmt.Fprint(os.Stderr, "hello stderr")
 		exitCode, _ := strconv.Atoi(exitText)

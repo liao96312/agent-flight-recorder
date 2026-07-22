@@ -48,6 +48,8 @@ func realMain(args []string) int {
 		return 0
 	case "run":
 		return runCommand(args[1:])
+	case "hook":
+		return hookCommand(args[1:])
 	case "list":
 		return listCommand(args[1:])
 	case "show":
@@ -425,6 +427,29 @@ func runCommand(args []string) int {
 	return result.ExitCode
 }
 
+func hookCommand(args []string) int {
+	flags := flag.NewFlagSet("afr hook", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	host := flags.String("host", "", "hook host")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || *host != "codex" {
+		fmt.Fprintln(os.Stderr, "AFR_USAGE: hook requires --host codex")
+		return exitUsage
+	}
+	if afr.ValidSessionID(os.Getenv("AFR_SESSION_ID")) {
+		return 0
+	}
+	_, err := afr.IngestCodexHook(afr.HookOptions{
+		PluginData:  os.Getenv("PLUGIN_DATA"),
+		Input:       os.Stdin,
+		LockTimeout: 2 * time.Second,
+		ScanLimits:  afr.ScanLimits{MaxTime: 2 * time.Second},
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AFR_HOOK: %v\n", err)
+	}
+	return 0
+}
+
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr list [--limit N] [--json] | afr show [--json|--open] [SESSION|latest] | afr verify [--json] [SESSION|latest] | afr clean (--older-than DURATION | --max-bytes SIZE) [--yes]")
+	fmt.Fprintln(os.Stderr, "usage: afr version | afr run [--workspace PATH] -- COMMAND [ARG...] | afr hook --host codex | afr list [--limit N] [--json] | afr show [--json|--open] [SESSION|latest] | afr verify [--json] [SESSION|latest] | afr clean (--older-than DURATION | --max-bytes SIZE) [--yes]")
 }

@@ -1,7 +1,7 @@
 # D0-01 Codex Desktop Hook 契约探针记录
 
 日期：2026-07-22  
-结论：CLI 契约与持久信任已通过；Desktop 完整重启后触发四类 Hook，但连续两个 turn 转换均未观察到 `Stop`。D0-01 停止门未通过，D0-02..D0-06 不实施。
+结论：CLI 契约、持久信任和 Desktop 五事件均已通过。早期两个 turn 未观察到 `Stop`，但同一 Desktop session 随后三个普通 turn 均稳定触发 `Stop`；D0-01 于补充证据后重新开放并通过。
 
 ## 环境
 
@@ -23,19 +23,20 @@
 - npm Codex `0.145.0` 不带 `--dangerously-bypass-hook-trust` 完成一次 shell turn，五类 Hook 均触发并写入同一 session 指纹；证明 AFR Hook 已持久信任。
 - Desktop 完整重启后，`gpt-5.6-sol` 当前任务实际触发 `SessionStart(source=resume)`、`UserPromptSubmit`、`PreToolUse` 和 `PostToolUse`。
 - 随后的 `SessionStart(source=compact)` 沿用相同 session 指纹，证明 Desktop 的 resume/compact 事件可以稳定关联同一宿主 session。
+- 同一 Desktop session 指纹 `56103b37b48c` 随后于 11:58:22、12:07:46、12:52:48 三次触发 `Stop`；对应 turn 还持续产生 `UserPromptSubmit` 与本地 `PreToolUse/PostToolUse`。
 
-## 未通过
+## 历史异常
 
 - PATH 优先命中了 OpenClaw 自带 Codex `0.138.0`；该版本未发现 AFR 默认 plugin hooks。显式使用 npm Codex `0.145.0` 后问题消失，无需下载新依赖。
 - 默认模型 `gpt-5.6-sol` 要求更新版 CLI，首次冒烟在工具调用前被宿主拒绝；该次结果不计入事件覆盖。
 - 用户已在 Codex `0.145.0` 的 `/hooks` 界面确认 AFR Hook 为信任状态。当前 Codex Desktop 任务随后提交的新消息仍没有生成探针文件，证明当前任务不热加载新 Hook；尚未创建新的 Desktop 任务。
 - 用户随后在 Desktop 新建任务并完成一次本地工具调用，但探针文件仍停留在 CLI 会话产生的 10 个，最新时间为 11:34:22。Desktop 主进程启动于 08:59，早于 AFR Hook 安装；同一应用进程内的新任务不会重新加载该插件 Hook。
-- Desktop 重启后的两个完整 turn 转换均未生成 `Stop` 探针；其他四类事件持续生成，因此不归因于插件未加载或依赖缺失。
+- Desktop 重启后的最初两个 turn 转换未生成 `Stop`，但后续三个普通 turn 已重复触发；该早期差异保留为生命周期边界证据，不再据此判定宿主缺失 `Stop`。
 
-## 停止决定
+## 重开决定
 
-1. 将缺失 `Stop` 记录为当前 Codex Desktop 包的宿主能力缺口。
-2. 不实施依赖完整五事件契约的 D0-02..D0-06。
-3. 删除插件默认 Hook 和探针脚本，不随正式插件交付；项目继续使用已发布的 CLI wrapper 和 Claude Code skill 进入真实会话验证。
+1. 以同一 Desktop session 的三次 `Stop` 作为 D0-01 重开证据。
+2. 正式实现只消费 Hook JSON，不读取 `transcript_path`，不补录安装前历史。
+3. `Stop` 只形成可验证的 `idle` 检查点，不伪装为 SessionEnd 或 `completed`。
 
-除非后续 Desktop 版本明确可重复触发 `Stop`，否则不重开 D0；不改用私有日志、UI 轮询、transcript 解析或 manifest override 绕过停止门。
+早期缺失仍需在 D0-06 当前任务 E2E 中复核；若正式 Hook 连续两轮再次缺 `Stop`，停止发布，但不改用私有日志、UI 轮询或 transcript 解析绕过。
