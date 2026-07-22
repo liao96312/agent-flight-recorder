@@ -623,7 +623,7 @@ rectangle "v0.1 候选实现\n核心、Windows 制品、薄插件\n已合并到�
 rectangle "P0 代码收口（已完成）\nM3-22 有界事件时间线\nM3-23 六行运行摘要" as P0Close #E2F0D9
 rectangle "REL-01 已完成\nMIT License" as License #E2F0D9
 rectangle "人工发布门槛（已完成）\n✓ REL-02 Claude 实调用\n✓ REL-03 独立 Windows artifact 验收" as Manual #E2F0D9
-rectangle "最终候选（进行中）\nREL-04 release-check + Windows/Unix CI\n版本 / commit / SHA 一致" as RC #D9EAF7
+rectangle "最终候选（已完成）\n✓ REL-04 release-check + Windows/Unix CI\n✓ 版本 / commit / SHA 一致" as RC #E2F0D9
 rectangle "正式公开发布\nREL-05 v0.1.0 tag + Release\nREL-06 回下载 / 公共安装复验" as Release #C6E0B4
 rectangle "P1 可用性（已完成）\n✓ show --open → ✓ .afrignore → ✓ .afr.json" as P1 #E2F0D9
 rectangle "公开试用（事件驱动）\nR0-09：20 次真实会话\n本地记录价值、误报、缺口与开销" as Pilot #E4DFEC
