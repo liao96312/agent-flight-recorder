@@ -29,8 +29,8 @@
 | 2 | ✅ `REL-01` | 已完成 | MIT License 文件、README、插件 manifest 与 release notes 一致 |
 | 3 | ✅ `REL-02`；✅ `REL-03` | Claude Code 实调用与独立 Windows 产物验收均已完成 | 进入 `REL-04` 最终候选一致性检查 |
 | 4 | ✅ `M3-09` → `M1-11` → `M2-07` | 已逐项完成；均为 P1 | 独立提交、测试和三平台 CI 通过 |
-| 5 | `REL-04` | 依赖已暂停的顺序 3 | 最终 `main` commit 的 release-check、CI、版本和 SHA 一致 |
-| 6 | `REL-05`、`REL-06` | `REL-01`、`REL-04` | 公开 Release 完成，回下载与公共安装复验通过 |
+| 5 | ✅ `REL-04` | 已完成 | 完整 release-check、CI、版本、commit、release notes 和 SHA 一致 |
+| 6 | `REL-05`、`REL-06` | 当前下一项 | 公开 Release 完成，回下载与公共安装复验通过 |
 | 7 | `R0-09` | `REL-06` 后开始 | 完成 20 条本地真实会话评审；每条记录 version/commit，允许区分期间发布的补丁版 |
 | 8 | `DEC-01` | `R0-09` | 只选择一个有重复证据的方向，或明确保持现状 |
 
@@ -544,9 +544,10 @@
   - 验收：不使用开发机工作树或构建作业文件系统；全新 Windows x64 作业只下载上游候选 exe/SHA 并复算校验；`version`、`list --json`、无 Git 的最小录制及 `verify` 可运行，缺 Agent 时错误明确；记录运行链接、时间和结果。
   - 结果：2026-07-22 GitHub Actions 独立 `windows-latest` 作业未 checkout 源码、未安装 Go，仅下载上游 artifact；SHA-256、空 profile 的 `version/list`、移除 Git PATH 后的最小录制、六行摘要及 `verify` 均通过，session `20260722T020221.618569700Z-6ff2e6d3846cde596b55ae00` 为 7 events、6 evidence、3 derived；缺失 Agent 返回 70 与 `AFR_RUNTIME`。运行：<https://github.com/liao96312/agent-flight-recorder/actions/runs/29884664955>。
 
-- [ ] **REL-04 [P0] 冻结最终 v0.1.0 候选 commit**
+- [x] **REL-04 [P0] 冻结最终 v0.1.0 候选 commit**
   - 依赖：M3-22、M3-23、REL-02、REL-03、R0-08。
   - 验收：从最终 `main` commit 执行 `release-check.ps1 -Full`；CI 全绿；二进制版本、commit、release notes 和 SHA-256 对应同一 commit；工作树无未说明发布改动。
+  - 结果：2026-07-22 Windows 10 IoT Enterprise LTSC、Go 1.26.5、Git 2.54.0 上完整 release check 通过：全量测试、安全矩阵、100 次强制终止、100 路并发输出、10,000 文件基准、Windows 构建、双插件 validator、Codex marketplace 与 SHA-256 均成功。检查脚本现会直接断言二进制为 `0.1.0`、内嵌 commit 等于当前 HEAD、release notes 为 v0.1.0；用户移动技术文档产生的两个已说明工作树条目不属于发布内容，未纳入候选提交。
 
 - [ ] **REL-05 [P0] 创建 `v0.1.0` tag 与公开 GitHub Release**
   - 依赖：REL-01、REL-04。
@@ -603,7 +604,8 @@ F0 契约
   -> REL-01 MIT License（已完成）
   -> P1 可用性（show --open / ignore / 配置，已完成）
   -> REL-02 Claude Code 真实 skill 冒烟（已完成）
-  -> [进行中] REL-04..REL-06 正式 v0.1.0 发布
+  -> REL-04 最终候选一致性检查（已完成）
+      -> [进行中] REL-05..REL-06 正式 v0.1.0 发布
       -> R0-09 二十次真实会话（逐条记录 version/commit）
           -> DEC-01 单方向数据门
               -> [仅证据触发] M4 hooks / 其他一个扩展方向

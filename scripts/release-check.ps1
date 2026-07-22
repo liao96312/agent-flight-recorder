@@ -18,6 +18,15 @@ try {
     }
 
     & $PSScriptRoot\build.ps1 -Version 0.1.0
+    $expectedCommit = (git rev-parse --short=12 HEAD).Trim()
+    $versionOutput = (& .\dist\afr-windows-amd64.exe version).Trim()
+    if (-not $versionOutput.StartsWith("afr 0.1.0 commit=$expectedCommit ", [StringComparison]::Ordinal)) {
+        throw "binary version does not match HEAD: $versionOutput"
+    }
+    $releaseNotes = Get-Content -Raw -Encoding UTF8 .\docs\RELEASE_NOTES_v0.1.0.md
+    if (-not $releaseNotes.StartsWith('# Agent Flight Recorder v0.1.0', [StringComparison]::Ordinal)) {
+        throw 'release notes do not match version 0.1.0'
+    }
     $expected = (Get-Content .\dist\SHA256SUMS).Split(' ')[0]
     $actual = (Get-FileHash -Algorithm SHA256 .\dist\afr-windows-amd64.exe).Hash.ToLowerInvariant()
     if ($actual -ne $expected) {

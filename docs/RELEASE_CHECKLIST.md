@@ -48,4 +48,5 @@ Windows PowerShell、Go 1.26、Git、Codex CLI 与 Claude Code 均可用时：
 - 报告与摘要收口：commit `efc7eb1` 的 10 万事件 fixture 验证时间线最多 1,000 行、显式 omission 和 512 UTF-8 bytes 上限；固定六行摘要、`RunResult` 集成及 child stdout 隔离测试通过。
 - Unix 证据：WSL2 Ubuntu 使用 Go 1.26.5 完成 `go test ./...`、真实 build/run/verify/show 与 Windows/macOS 交叉测试编译；Ubuntu 和 macOS runner 的 go test/build、孙进程终止、真实 run/verify 均通过：[run 29798685253](https://github.com/liao96312/agent-flight-recorder/actions/runs/29798685253)。
 - License：产品负责人于 2026-07-21 选择 MIT；根 `LICENSE`、README、插件 manifest 与 release notes 已统一为 SPDX `MIT`。
-- 当前发布阻塞项：最终 main 一致性检查、正式 tag / Release 与回下载验证。以上未完成前状态保持 candidate。
+- 最终候选一致性：2026-07-22 在 Windows 10 IoT Enterprise LTSC、Go 1.26.5、Git 2.54.0 上执行 `release-check.ps1 -Full` 通过；脚本直接断言二进制 `0.1.0`、内嵌 commit 与当前 HEAD、v0.1.0 release notes 一致，并复算 SHA-256。
+- 当前发布阻塞项：正式 tag / Release 与回下载验证。以上未完成前状态保持 candidate。

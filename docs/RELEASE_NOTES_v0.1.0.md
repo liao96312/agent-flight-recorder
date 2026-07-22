@@ -21,7 +21,7 @@
 
 ## 外部前置与边界
 
-Git 和目标 Agent CLI 需单独安装。AFR 不提供数字签名、远端见证、操作系统文件监控或网络监控；详见[隐私与威胁模型](./SECURITY.md)。Claude Code 的真实 skill 调用需要用户先完成 Claude 登录。
+Git 和目标 Agent CLI 需单独安装。AFR 不提供数字签名、远端见证、操作系统文件监控或网络监控；详见[隐私与威胁模型](./SECURITY.md)。Claude Code 的真实 skill 调用需要账户登录或兼容 API provider 认证。
 
 ## 校验
 
