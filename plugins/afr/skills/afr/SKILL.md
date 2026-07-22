@@ -13,6 +13,8 @@ Use the `afr` executable as a thin local wrapper. AFR records only a **new child
 2. Resolve the workspace to an absolute path.
 3. Confirm the requested host and new task. Treat `$ARGUMENTS` as the user's requested action when present.
 
+AFR automatically honors a workspace-root `.afrignore` and strict `.afr.json` custom RE2 redaction rules. If either file is invalid, report the configuration error; do not bypass or rewrite it unless the user asks.
+
 ## Record a new task
 
 Put every AFR option before the standalone `--`. Pass the child executable and each argument separately after it; never rebuild them as a shell command string.

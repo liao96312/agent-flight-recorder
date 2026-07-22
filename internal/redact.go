@@ -34,13 +34,20 @@ var ansiPattern = regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
 
 type Redactor struct {
 	fingerprinter *Fingerprinter
+	detectors     []secretDetector
 }
 
 func NewRedactor(fingerprinter *Fingerprinter) (*Redactor, error) {
+	return newRedactor(fingerprinter, nil)
+}
+
+func newRedactor(fingerprinter *Fingerprinter, custom []secretDetector) (*Redactor, error) {
 	if fingerprinter == nil {
 		return nil, errors.New("redactor requires a session fingerprinter")
 	}
-	return &Redactor{fingerprinter: fingerprinter}, nil
+	detectors := append([]secretDetector{}, secretDetectors...)
+	detectors = append(detectors, custom...)
+	return &Redactor{fingerprinter: fingerprinter, detectors: detectors}, nil
 }
 
 func (redactor *Redactor) Text(text string) string {
@@ -50,7 +57,7 @@ func (redactor *Redactor) Text(text string) string {
 
 func (redactor *Redactor) TextWithKinds(text string) (string, []string) {
 	kinds := []string{}
-	for _, detector := range secretDetectors {
+	for _, detector := range redactor.detectors {
 		text = detector.pattern.ReplaceAllStringFunc(text, func(secret string) string {
 			kinds = append(kinds, detector.name)
 			return redactor.placeholder(detector.name, secret)

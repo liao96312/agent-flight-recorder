@@ -58,6 +58,10 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 	if err != nil {
 		return RunResult{}, err
 	}
+	customDetectors, err := loadWorkspaceRedactionRules(workspace)
+	if err != nil {
+		return RunResult{}, err
+	}
 	if options.SessionsRoot == "" {
 		options.SessionsRoot, err = DefaultSessionsRoot()
 		if err != nil {
@@ -80,7 +84,7 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 	if err != nil {
 		return RunResult{}, err
 	}
-	redactor, err := NewRedactor(fingerprinter)
+	redactor, err := newRedactor(fingerprinter, customDetectors)
 	if err != nil {
 		return RunResult{}, err
 	}

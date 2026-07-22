@@ -105,6 +105,20 @@ generated/*.tmp
 
 Plain paths are root-relative prefixes. Patterns containing `*`, `?`, or `[` use Go's `path.Match` rules after `\` is normalized to `/`; `*.log` therefore matches only the workspace root. Invalid patterns stop `afr run` before the child starts. This deliberately is not full `.gitignore`: there is no negation, recursive `**`, or parent-file discovery.
 
+### Add Workspace Redaction Rules
+
+Add strict, data-only RE2 rules in the workspace-root `.afr.json`:
+
+```json
+{
+  "redaction_rules": [
+    {"name": "acme_id", "type": "regex", "pattern": "ACME-[0-9]{4}"}
+  ]
+}
+```
+
+Names must match `[a-z][a-z0-9_]{0,63}` and cannot duplicate built-in or custom names. The only supported type is `regex`, implemented by Go's RE2 engine. Unknown fields, malformed JSON, empty-matching patterns, and invalid regex stop `afr run` before the child starts. The configuration cannot run code or define replacements.
+
 ## Codex And Claude Code Plugin
 
 The shared plugin root is [`plugins/afr`](plugins/afr). It checks the local CLI, starts a **new recorded task**, and helps inspect or verify existing sessions. It cannot retroactively record the current conversation.
