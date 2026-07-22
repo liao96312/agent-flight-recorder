@@ -555,7 +555,7 @@ Claude Code hooks、跨宿主统一 SessionEnd、Hosted tools 覆盖、历史对
 - [ ] **R0-09 [P1] 20 次真实会话评审**
   - 依赖：REL-06；D0 切片不是依赖。
   - 验收：20 条 wrapper / Claude skill 真实任务均记录 AFR version/commit、capture mode、host/version、session ID、任务类型、运行时长、目录大小、真实发现、误报、证据缺口、复盘耗时和继续使用意愿；不加遥测服务，不上传原始证据。
-  - 2026-07-22 状态：进行中 `1/20`；本地台账见 `R0-09-OBSERVATIONS.md`，建表任务本身不计入 observation。第 1 条为如实保留的超时/incomplete 任务，暴露 Windows 父进程终止后的子进程清理缺口。
+  - 2026-07-22 状态：进行中 `2/20`；本地台账见 `R0-09-OBSERVATIONS.md`，建表任务本身不计入 observation。已发现 Windows 父进程终止后的子进程清理缺口，以及 PATH 中同 semver 旧构建导致的功能漂移。
 
 - [ ] **DEC-01 [P1] 执行 20 次会话数据门**
   - 依赖：R0-09。
