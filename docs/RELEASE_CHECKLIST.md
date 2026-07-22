@@ -49,4 +49,5 @@ Windows PowerShell、Go 1.26、Git、Codex CLI 与 Claude Code 均可用时：
 - Unix 证据：WSL2 Ubuntu 使用 Go 1.26.5 完成 `go test ./...`、真实 build/run/verify/show 与 Windows/macOS 交叉测试编译；Ubuntu 和 macOS runner 的 go test/build、孙进程终止、真实 run/verify 均通过：[run 29798685253](https://github.com/liao96312/agent-flight-recorder/actions/runs/29798685253)。
 - License：产品负责人于 2026-07-21 选择 MIT；根 `LICENSE`、README、插件 manifest 与 release notes 已统一为 SPDX `MIT`。
 - 最终候选一致性：2026-07-22 在 Windows 10 IoT Enterprise LTSC、Go 1.26.5、Git 2.54.0 上执行 `release-check.ps1 -Full` 通过；脚本直接断言二进制 `0.1.0`、内嵌 commit 与当前 HEAD、v0.1.0 release notes 一致，并复算 SHA-256。
-- 当前发布阻塞项：正式 tag / Release 与回下载验证。以上未完成前状态保持 candidate。
+- 正式发布：annotated tag `v0.1.0` 与公开 Release 指向 commit `a67c913dc626315899e630a99b72ad2a05a54d28`；exe、`SHA256SUMS` 和版本说明均已上传：<https://github.com/liao96312/agent-flight-recorder/releases/tag/v0.1.0>。
+- 回下载：独立目录复算 exe SHA-256 `165aabcd558d95d1a8fe2617ef0df19939492815ca572dc77d95e37d95ec95ac` 一致；`version/list`、Codex 公开 tag marketplace 安装及 Claude tag checkout 插件发现均通过。v0.1.0 发布门槛已闭环，下一阶段为 `R0-09`。

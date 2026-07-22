@@ -30,8 +30,8 @@
 | 3 | ✅ `REL-02`；✅ `REL-03` | Claude Code 实调用与独立 Windows 产物验收均已完成 | 进入 `REL-04` 最终候选一致性检查 |
 | 4 | ✅ `M3-09` → `M1-11` → `M2-07` | 已逐项完成；均为 P1 | 独立提交、测试和三平台 CI 通过 |
 | 5 | ✅ `REL-04` | 已完成 | 完整 release-check、CI、版本、commit、release notes 和 SHA 一致 |
-| 6 | `REL-05`、`REL-06` | 当前下一项 | 公开 Release 完成，回下载与公共安装复验通过 |
-| 7 | `R0-09` | `REL-06` 后开始 | 完成 20 条本地真实会话评审；每条记录 version/commit，允许区分期间发布的补丁版 |
+| 6 | ✅ `REL-05`；✅ `REL-06` | 已完成 | `v0.1.0` 公开 Release、回下载与公共安装复验均通过 |
+| 7 | `R0-09` | 当前下一项 | 完成 20 条本地真实会话评审；每条记录 version/commit，允许区分期间发布的补丁版 |
 | 8 | `DEC-01` | `R0-09` | 只选择一个有重复证据的方向，或明确保持现状 |
 
 ## 1. Phase 0：契约冻结（2 天）
@@ -549,13 +549,15 @@
   - 验收：从最终 `main` commit 执行 `release-check.ps1 -Full`；CI 全绿；二进制版本、commit、release notes 和 SHA-256 对应同一 commit；工作树无未说明发布改动。
   - 结果：2026-07-22 Windows 10 IoT Enterprise LTSC、Go 1.26.5、Git 2.54.0 上完整 release check 通过：全量测试、安全矩阵、100 次强制终止、100 路并发输出、10,000 文件基准、Windows 构建、双插件 validator、Codex marketplace 与 SHA-256 均成功。检查脚本现会直接断言二进制为 `0.1.0`、内嵌 commit 等于当前 HEAD、release notes 为 v0.1.0；用户移动技术文档产生的两个已说明工作树条目不属于发布内容，未纳入候选提交。
 
-- [ ] **REL-05 [P0] 创建 `v0.1.0` tag 与公开 GitHub Release**
+- [x] **REL-05 [P0] 创建 `v0.1.0` tag 与公开 GitHub Release**
   - 依赖：REL-01、REL-04。
   - 验收：最终 release commit 先把 README 状态与下载链接更新为 v0.1.0 released，再创建指向该 commit 的 annotated tag；公开 Release 上传 Windows exe、`SHA256SUMS` 和版本说明；页面明确 Windows x64、未签名、能力边界及 Git / Agent 外部前置。
+  - 结果：2026-07-22 annotated tag `v0.1.0` 指向 release commit `a67c913dc626315899e630a99b72ad2a05a54d28`；该 commit 的完整 release check 和 Windows/Ubuntu/macOS CI 全绿。公开 Release 上传 exe、`SHA256SUMS`、版本说明并明确未签名、外部前置和能力边界：<https://github.com/liao96312/agent-flight-recorder/releases/tag/v0.1.0>。
 
-- [ ] **REL-06 [P0] 公开附件回下载与安装路径复验**
+- [x] **REL-06 [P0] 公开附件回下载与安装路径复验**
   - 依赖：REL-05。
   - 验收：从 GitHub Release 重新下载附件，复算 SHA-256，在独立目录运行 `version`、`list --json`；按 tag 内的公开文档完成 Codex / Claude 插件发现或安装，不再修改已经发布的 tag 内容。
+  - 结果：从公开 Release 下载到独立目录 `D:\afr-release-verify-v0.1.0`，exe SHA-256 为 `165aabcd558d95d1a8fe2617ef0df19939492815ca572dc77d95e37d95ec95ac`，与附件校验和一致；`version` 为 `0.1.0 commit=a67c913dc626`，空 profile 的 `list --json` 为空。Codex 从公开 `liao96312/agent-flight-recorder@v0.1.0` marketplace 安装 `afr@personal` 0.1.0 成功并恢复原本地配置；Claude Code 2.1.185 对 tag checkout 的 marketplace/plugin strict validator 与 `--plugin-dir` 发现均通过。
 
 - [ ] **R0-09 [P1] 20 次真实会话评审**
   - 依赖：REL-06。
@@ -605,10 +607,10 @@ F0 契约
   -> P1 可用性（show --open / ignore / 配置，已完成）
   -> REL-02 Claude Code 真实 skill 冒烟（已完成）
   -> REL-04 最终候选一致性检查（已完成）
-      -> [进行中] REL-05..REL-06 正式 v0.1.0 发布
-      -> R0-09 二十次真实会话（逐条记录 version/commit）
+      -> REL-05..REL-06 正式 v0.1.0 发布（已完成）
+      -> [下一项] R0-09 二十次真实会话（逐条记录 version/commit）
           -> DEC-01 单方向数据门
               -> [仅证据触发] M4 hooks / 其他一个扩展方向
 ```
 
-M1 的两周停止门槛已经通过。现在的新停止门槛是 `REL-06` 和 `DEC-01`：正式发布真值未闭环前不宣称 released；20 次会话没有重复证据前不启动 hooks、Dify、索引、签名或团队后台。
+M1 与正式发布门槛已经通过。现在的停止门槛是 `DEC-01`：20 次会话没有重复证据前不启动 hooks、Dify、索引、签名或团队后台。

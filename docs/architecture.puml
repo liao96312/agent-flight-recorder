@@ -624,7 +624,7 @@ rectangle "P0 代码收口（已完成）\nM3-22 有界事件时间线\nM3-23 �
 rectangle "REL-01 已完成\nMIT License" as License #E2F0D9
 rectangle "人工发布门槛（已完成）\n✓ REL-02 Claude 实调用\n✓ REL-03 独立 Windows artifact 验收" as Manual #E2F0D9
 rectangle "最终候选（已完成）\n✓ REL-04 release-check + Windows/Unix CI\n✓ 版本 / commit / SHA 一致" as RC #E2F0D9
-rectangle "正式公开发布\nREL-05 v0.1.0 tag + Release\nREL-06 回下载 / 公共安装复验" as Release #C6E0B4
+rectangle "正式公开发布（已完成）\n✓ REL-05 v0.1.0 tag + Release\n✓ REL-06 回下载 / 公共安装复验" as Release #E2F0D9
 rectangle "P1 可用性（已完成）\n✓ show --open → ✓ .afrignore → ✓ .afr.json" as P1 #E2F0D9
 rectangle "公开试用（事件驱动）\nR0-09：20 次真实会话\n本地记录价值、误报、缺口与开销" as Pilot #E4DFEC
 rectangle "◇ DEC-01\n是否有多个 session 证明\n同一缺口反复阻碍复核？" as DataGate #FCE4D6
