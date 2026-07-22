@@ -31,7 +31,7 @@
 | 4 | ✅ `M3-09` → `M1-11` → `M2-07` | 已逐项完成；均为 P1 | 独立提交、测试和三平台 CI 通过 |
 | 5 | ✅ `REL-04` | 已完成 | 完整 release-check、CI、版本、commit、release notes 和 SHA 一致 |
 | 6 | ✅ `REL-05`；✅ `REL-06` | 已完成 | `v0.1.0` 公开 Release、回下载与公共安装复验均通过 |
-| 7 | `D0-01` → `D0-06` | `D0-01` 停止门未通过；`D0-02..D0-06` 暂停 | 桌面端 `/hooks` 信任后的新任务实际触发五类 AFR 探针事件 |
+| 7 | `D0-01` → `D0-06` | CLI 契约与持久信任通过；等待新 Desktop 任务；`D0-02..D0-06` 暂停 | 新建桌面任务实际触发五类 AFR 探针事件 |
 | 8 | `R0-09` | `D0-06` | 完成 20 条本地真实会话评审，并区分 `desktop_hook` / `wrapper` |
 | 9 | `DEC-01` | `R0-09` | 只选择一个有重复证据的方向，或明确保持现状 |
 
@@ -455,8 +455,8 @@
   - 依赖：v0.1.0 已发布；目标 Codex Desktop 版本可安装本地 AFR 插件。
   - 验收：使用插件默认 `hooks/hooks.json`，经 `/hooks` 审阅并信任后新建桌面任务；以不含用户正文/secret 的本地探针确认 `SessionStart`、`UserPromptSubmit`、至少一个本地 `PreToolUse/PostToolUse` 与 `Stop` 实际触发，记录 Desktop/CLI/plugin 版本、正式字段名和未覆盖事件。
   - 停止：上述四类事件任一缺失，或桌面端不加载 plugin-bundled hooks，则暂停 D0-02..D0-06，保留探针证据并报告；不得转而抓私有日志、轮询 UI 或解析不稳定 transcript。
-  - 2026-07-22 状态：**停止门未通过**。探针自身与插件打包校验通过，但 CLI 0.138.0 的一次完整 shell turn 未生成 AFR 探针文件，也未观察到 AFR 的 `PreToolUse/PostToolUse/Stop`；当前桌面任务无法自动完成 `/hooks` 信任与新任务验证。证据见 `D0-01-HOOK-PROBE.md`。
-  - 恢复条件：用户在 Codex Desktop 执行 `/hooks`，确认并信任 AFR hook 后新建一个任务；只重跑一次五事件探针。未满足前不实施 D0-02..D0-06。
+  - 2026-07-22 状态：npm Codex 0.145.0 的五事件契约与持久信任已通过；PATH 中 OpenClaw Codex 0.138.0 是此前未发现默认 plugin hooks 的根因。当前 Desktop 任务不热加载，等待新建桌面任务完成最终探针。证据见 `D0-01-HOOK-PROBE.md`。
+  - 恢复条件：新建一个 Codex Desktop 任务，只重跑一次五事件探针。未满足前不实施 D0-02..D0-06。
 
 - [ ] **D0-02 [P0] 冻结 hook-only session 与状态映射**
   - 依赖：D0-01。
@@ -601,10 +601,10 @@ F0 契约
   -> REL-02 Claude Code 真实 skill 冒烟（已完成）
   -> REL-04 最终候选一致性检查（已完成）
       -> REL-05..REL-06 正式 v0.1.0 发布（已完成）
-      -> [停止门] D0-01 Desktop hook 探针（未通过；D0-02..D0-06 暂停）
+      -> [停止门] D0-01 Desktop hook 探针（CLI 已通过；等待新 Desktop 任务）
           -> R0-09 二十次真实会话（逐条记录 capture mode/version/commit）
           -> DEC-01 单方向数据门
               -> [仅证据触发] M4 hooks / 其他一个扩展方向
 ```
 
-M1 与正式发布门槛已经通过。`D0-01` 于 2026-07-22 命中停止门，`D0-02..D0-06` 暂停；待桌面端完成 `/hooks` 信任并在新任务中重跑五事件探针。D0-06 完成后再执行 `R0-09 / DEC-01`；20 次会话没有重复证据前，不扩展 Claude hooks、Hosted tools 适配、历史导入、Dify、索引、签名或团队后台。
+M1 与正式发布门槛已经通过。`D0-01` 的 CLI 契约与持久信任已通过，但当前 Desktop 任务不热加载；`D0-02..D0-06` 暂停，待新 Desktop 任务重跑五事件探针。D0-06 完成后再执行 `R0-09 / DEC-01`；20 次会话没有重复证据前，不扩展 Claude hooks、Hosted tools 适配、历史导入、Dify、索引、签名或团队后台。
