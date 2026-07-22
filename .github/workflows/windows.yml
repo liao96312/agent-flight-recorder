@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -15,18 +15,61 @@ jobs:
       - run: go test ./...
       - shell: pwsh
         run: ./scripts/build.ps1 -Version 0.1.0
-      - shell: pwsh
-        run: |
-          $env:USERPROFILE = Join-Path $env:RUNNER_TEMP 'empty-profile'
-          New-Item -ItemType Directory -Path $env:USERPROFILE | Out-Null
-          ./dist/afr-windows-amd64.exe version
-          ./dist/afr-windows-amd64.exe list --json
-          $expected = (Get-Content ./dist/SHA256SUMS).Split(' ')[0]
-          $actual = (Get-FileHash -Algorithm SHA256 ./dist/afr-windows-amd64.exe).Hash.ToLowerInvariant()
-          if ($actual -ne $expected) { throw "checksum mismatch: $actual != $expected" }
       - uses: actions/upload-artifact@v7
         with:
           name: afr-windows-amd64
           path: |
             dist/afr-windows-amd64.exe
             dist/SHA256SUMS
+
+  clean-artifact-smoke:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: afr-windows-amd64
+          path: candidate
+      - shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $false
+
+          $candidate = (Resolve-Path ./candidate/afr-windows-amd64.exe).Path
+          $checksum = (Resolve-Path ./candidate/SHA256SUMS).Path
+          $expected = ((Get-Content -Raw $checksum).Trim() -split '\s+')[0].ToLowerInvariant()
+          $actual = (Get-FileHash -Algorithm SHA256 $candidate).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "checksum mismatch: $actual != $expected" }
+
+          $env:USERPROFILE = Join-Path $env:RUNNER_TEMP 'empty-profile'
+          $workspace = Join-Path $env:RUNNER_TEMP 'empty-workspace'
+          New-Item -ItemType Directory -Force -Path $env:USERPROFILE, $workspace | Out-Null
+
+          & $candidate version
+          if ($LASTEXITCODE -ne 0) { throw "version exited $LASTEXITCODE" }
+          $sessions = & $candidate list --json | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "list exited $LASTEXITCODE" }
+          if (@($sessions).Count -ne 0) { throw 'empty profile unexpectedly contains sessions' }
+
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          if (Get-Command git -ErrorAction SilentlyContinue) { throw 'Git must be absent from the smoke PATH' }
+          $cmd = Join-Path $env:SystemRoot 'System32\cmd.exe'
+          $runStderr = Join-Path $env:RUNNER_TEMP 'afr-run.stderr'
+          $runStdout = @(& $candidate run --workspace $workspace -- $cmd /d /c echo CLEAN_ARTIFACT_OK 2> $runStderr)
+          if ($LASTEXITCODE -ne 0) { throw "recording exited $LASTEXITCODE`n$(Get-Content -Raw $runStderr)" }
+          if (($runStdout -join "`n") -notmatch 'CLEAN_ARTIFACT_OK') { throw 'recorded command output is missing' }
+
+          $summary = @(Get-Content $runStderr)
+          foreach ($prefix in @('Session:', 'Evidence:', 'Changed:', 'Risks:', 'Exit:', 'Report:')) {
+            if (@($summary | Where-Object { $_.StartsWith($prefix) }).Count -ne 1) {
+              throw "run summary must contain exactly one $prefix line"
+            }
+          }
+          if (($summary -join "`n") -notmatch 'workspace_git') { throw 'run did not report the missing Git capability' }
+
+          $verifyOutput = @(& $candidate verify latest 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw "verify exited $LASTEXITCODE`n$($verifyOutput -join "`n")" }
+
+          $missingOutput = @(& $candidate run --workspace $workspace -- afr-agent-does-not-exist 2>&1)
+          if ($LASTEXITCODE -ne 70) { throw "missing agent exited $LASTEXITCODE instead of 70" }
+          if (($missingOutput -join "`n") -notmatch 'AFR_RUNTIME:') { throw 'missing agent did not return an AFR_RUNTIME error' }

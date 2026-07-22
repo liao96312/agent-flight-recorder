@@ -26,7 +26,7 @@ Windows PowerShell、Go 1.26、Git、Codex CLI 与 Claude Code 均可用时：
 | HTML 事件时间线 | `M3-22` 定向测试与人工浏览器筛选 | 按 seq 最多显示 1,000 行（前后各 500），每行摘要最多 512 UTF-8 bytes；超出时 omission 数量/区间明确；截断与能力缺口可见 |
 | `run` 结束摘要 | `M3-23` CLI / E2E 测试 | stderr 固定输出 Session、capability vector、五类 change 计数、risk 数量/最高级别、child/state、绝对 HTML 路径；child stdout 不变 |
 | 性能基准 | `scripts/benchmark.ps1` | before / after 各小于 10 秒且不 partial；记录环境与分段耗时 |
-| Windows 干净 VM | GitHub Actions `windows`，另在干净 Windows VM 下载 artifact | 仅放 exe 可运行 `version`、`list --json`；缺 Git/Agent 时错误清楚 |
+| Windows 干净环境 | GitHub Actions 独立 Windows 作业下载构建作业上传的 artifact | 不 checkout 源码、不安装 Go；复算 SHA 后运行 `version`、`list --json`、无 Git 录制及 `verify`；缺 Agent 时错误清楚 |
 | Windows 发布物 | `scripts/build.ps1` 后复算 `SHA256SUMS` | exe、SHA-256、版本说明齐全且一致 |
 | Codex 插件 | plugin/skill validator；marketplace add/list/install；`afr run -- codex exec ...` | validator、发现和真实记录成功 |
 | Claude Code 插件 | `claude plugin validate --strict`；`--plugin-dir`；`/afr:afr` | 共根加载且 skill 调用同一 `afr`；使用 Claude 账户或兼容 API provider 认证 |
