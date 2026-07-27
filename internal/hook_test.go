@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sync"
 	"testing"
@@ -126,6 +127,16 @@ func TestCodexHookConcurrentAppend(t *testing.T) {
 	verification := VerifySession(stopped.SessionDir)
 	if !verification.Valid || verification.Events != workers+4 {
 		t.Fatalf("verify = %+v", verification)
+	}
+}
+
+func TestHookLockRecognizesWindowsContention(t *testing.T) {
+	if !hookLockContended(&os.PathError{Err: os.ErrExist}) {
+		t.Fatal("existing lock was not treated as contention")
+	}
+	got := hookLockContended(&os.PathError{Err: os.ErrPermission})
+	if got != (runtime.GOOS == "windows") {
+		t.Fatalf("permission contention = %t on %s", got, runtime.GOOS)
 	}
 }
 

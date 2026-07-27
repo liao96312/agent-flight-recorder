@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"time"
 )
@@ -507,7 +508,7 @@ func withHookLock(pluginData, hostHash string, timeout time.Duration, action fun
 			defer os.Remove(path)
 			return action()
 		}
-		if !errors.Is(err, os.ErrExist) {
+		if !hookLockContended(err) {
 			return err
 		}
 		if staleHookLock(path) {
@@ -519,6 +520,10 @@ func withHookLock(pluginData, hostHash string, timeout time.Duration, action fun
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
+}
+
+func hookLockContended(err error) bool {
+	return errors.Is(err, os.ErrExist) || runtime.GOOS == "windows" && errors.Is(err, os.ErrPermission)
 }
 
 func staleHookLock(path string) bool {
