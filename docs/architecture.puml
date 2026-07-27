@@ -626,9 +626,9 @@ rectangle "人工发布门槛（已完成）\n✓ REL-02 Claude 实调用\n✓ R
 rectangle "最终候选（已完成）\n✓ REL-04 release-check + Windows/Unix CI\n✓ 版本 / commit / SHA 一致" as RC #E2F0D9
 rectangle "正式公开发布（已完成）\n✓ REL-05 v0.1.0 tag + Release\n✓ REL-06 回下载 / 公共安装复验" as Release #E2F0D9
 rectangle "P1 可用性（已完成）\n✓ show --open → ✓ .afrignore → ✓ .afr.json" as P1 #E2F0D9
-rectangle "公开试用（事件驱动）\nR0-09：20 次真实会话\n本地记录价值、误报、缺口与开销" as Pilot #E4DFEC
-rectangle "◇ DEC-01\n是否有多个 session 证明\n同一缺口反复阻碍复核？" as DataGate #FCE4D6
-rectangle "保持 CLI + 薄插件\n修复具体缺陷并继续观察" as Maintain #E2F0D9
+rectangle "公开试用（已完成）\nR0-09：20/20 真实会话\n本地记录价值、误报、缺口与开销" as Pilot #E2F0D9
+rectangle "DEC-01（已完成）\nADR-0002：没有一个方向\n达到扩建门槛" as DataGate #E2F0D9
+rectangle "当前决策\n保持 CLI + Desktop Hook + 薄插件\n修复具体缺陷并继续观察" as Maintain #E2F0D9
 rectangle "只启动一个有证据的方向\n例如 M4 hooks / 索引 / 团队汇总" as OneDirection #F4CCCC
 
 Candidate --> P0Close
@@ -640,8 +640,8 @@ License --> RC : 已确认
 RC --> Release
 Release --> Pilot : 逐条记录 version/commit
 Pilot --> DataGate
-DataGate --> OneDirection : 是，ADR 记录收益与成本
-DataGate --> Maintain : 否
+DataGate ..> OneDirection : 未来满足 ADR-0002 重开阈值
+DataGate --> Maintain : 当前结论
 
 note bottom of License
   根 License、README、插件 manifest

@@ -40,7 +40,7 @@
 | 首个验收 Agent | `codex exec` 已完成真实包装与 verify 冒烟 | 每次正式发布复验 |
 | Claude Code 验收 | strict validator、加载、生命周期及 OpenRouter 认证的 `/afr:afr` 实调用已通过 | `REL-02` 已完成；免费子模型输出质量不作为 AFR 功能断言 |
 | 会话保留 | 不后台删除；文档可建议 30 天，实际删除必须显式运行 `clean` 并给出条件 | 20 次真实会话后复盘 |
-| Codex Desktop hooks | 不进入 v0.1；产品负责人于 2026-07-22 明确要求适配桌面端当前任务，先执行有停止门的最小 D0 切片 | 同一 Desktop session 后续三轮均触发 `Stop`，D0-01 重开通过；D0-02..D0-04 已实现，等待正式插件重装与当前任务 E2E |
+| Codex Desktop hooks | 不进入 v0.1；产品负责人于 2026-07-22 明确要求适配桌面端当前任务，执行有停止门的最小 D0 切片 | D0-01..D0-06 已完成；正式 Hook 在当前 Desktop 任务连续两轮复用同一 AFR session，idle 报告与 verify 均通过 |
 
 ## 2. 审读结论
 
@@ -482,7 +482,7 @@ skill 只做四件事：
 
 ### 11.2 v0.2：Codex Desktop hook 原生事件
 
-产品负责人已明确当前桌面任务必须可记录，因此执行了 Codex Desktop 最小停止门探针。早期两个 turn 未观察到 `Stop`，但同一 Desktop session 随后三个普通 turn 均稳定触发五事件契约；D0-01 已按补充证据重开通过。D0-02..D0-04 已完成，D0-05..D0-06 等待正式插件重装与当前任务 E2E：
+产品负责人已明确当前桌面任务必须可记录，因此执行了 Codex Desktop 最小停止门切片。D0-01 的旧 PowerShell 探针只证明字段契约；正式定义随后因 hash 变化成为 `modified`，经用户授权使用 app-server 原子写入当前信任并完整重启后，D0-02..D0-06 已全部完成。当前 Desktop 任务连续两轮使用正式 `afr.exe hook --host codex`，复用同一 AFR session，稳定 idle 报告与 verify 均通过：
 
 ```text
 plugins/afr/
@@ -496,7 +496,7 @@ plugins/afr/
 - 多个 hooks 可能并发启动；`afr hook` 必须用会话锁串行分配 seq/hash。
 - 最小并发方案是会话内 O_EXCL 锁文件、短超时和受控陈旧锁恢复；吞吐成为瓶颈后才引入单写者进程。
 - hook-only 模式用正式 `session_id` 映射 AFR session，不依赖父 wrapper；wrapper 模式保持不变，两者不得生成双会话。
-- 插件 hook 需要用户信任；报告必须记录 hook 是否安装、启用、受信和实际触发。
+- Desktop 没有 `/hooks` 斜杠命令；信任使用 Desktop Hooks/插件 Review 或宿主 app-server，CLI `/hooks` 只算 CLI 入口。installed/enabled/trusted 由宿主预检证明；AFR 报告只记录实际触发事件与可观察能力，不虚构无法从事件观察的信任或插件版本。
 - 不解析不稳定的 `transcript_path`，不追溯安装/信任前历史，不把 Hosted tools 冒充为已观测。
 
 Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin validator 对 manifest 中显式 `hooks` 字段存在版本差异，因此首选默认文件，不在 Codex manifest 中写 override，直到目标版本验证通过。
@@ -561,9 +561,9 @@ Codex 当前文档支持插件根默认 `hooks/hooks.json`；本地 plugin valid
 | M3 候选版 | 候选代码、报告时间线和运行摘要已完成 | 0 | 报告、CLI、Windows 包、薄插件 | `M3-22`、`M3-23` 与既有安全门槛均通过 |
 | R0 正式发布 | 已完成 | 0 | License、Claude 实调用、干净环境、tag、Release、回下载 | `REL-01` 至 `REL-06` 全部有证据 |
 | P1 可用性 | 已完成 | 0 | `show --open`、ignore、自定义 RE2 | 三项均独立测试、提交和 CI，不捆绑大版本 |
-| OBS 公开试用 | 进行中（2/20） | 事件驱动，直到 20 次 | 真实 Codex/Claude wrapper 会话、本地评审表 | `R0-09` 形成 20 条可追溯记录 |
-| DEC 数据门 | 未开始 | 半天 | 对证据缺口、性能、复核价值做决策 | `DEC-01` 明确“只做一个方向”或“保持现状” |
-| M4a Codex Desktop hooks | 进行中；D0-01..D0-04 完成 | 正式插件重装与 Desktop 重启 | `afr hook`、hook-only session、并发锁、Desktop E2E | 当前任务两轮同 session、idle 报告和 verify 通过 |
+| OBS 公开试用 | 已完成（20/20） | 0 | 真实 wrapper / desktop_hook / Claude skill 会话、本地评审表 | `R0-09` 已形成 20 条可追溯记录 |
+| DEC 数据门 | 已完成 | 0 | 对证据缺口、性能、复核价值做决策 | ADR-0002 决定保持现状并给出重开阈值 |
+| M4a Codex Desktop hooks | 已完成；D0-01..D0-06 通过 | 0 | `afr hook`、hook-only session、并发锁、Desktop E2E | 当前任务两轮同 session、idle 报告和 verify 已通过 |
 | M5 团队增强 | 条件性暂缓 | 数据驱动 | 签名见证、索引、Dify/团队分析 | 有真实使用数据、明确责任人和合规边界 |
 
 ### 13.1 两周停止门槛
@@ -586,9 +586,9 @@ M1 结束时必须能稳定回答：
 | 4 | ✅ `M3-09`、`M1-11`、`M2-07` | 发布门槛暂停期间已逐项完成；每项单独提交 | 浏览器打开、ignore 和配置失败验收及三平台 CI 分别通过 |
 | 5 | ✅ `REL-04` 最终候选检查 | 已完成 | 完整 release-check 通过；脚本断言二进制版本、内嵌 commit、release notes 与当前 HEAD 一致，并复算 SHA-256 |
 | 6 | ✅ `REL-05` tag + GitHub Release；✅ `REL-06` 回下载 / 公共安装复验 | 已完成 | 公开附件可下载、校验一致，Codex 公开安装与 Claude tag 插件发现通过 |
-| 7 | ✅ `D0-01` → `D0-04`；`D0-05` → `D0-06` Codex Desktop 当前任务接入 | 等待 cachebuster/reinstall/restart | 当前 Desktop 任务连续两轮写入同一 AFR session，idle 报告与 verify 一致 |
-| 8 | `R0-09` 20 次真实会话 | wrapper 继续可用；D0-06 后增加 desktop_hook | 每次记录 capture mode/version/commit、host、session ID、发现、误报、缺口、复核耗时、磁盘/启动开销和继续使用意愿 |
-| 9 | `DEC-01` 数据门 | 依赖完整 20 次记录 | 形成 ADR：只启动一个证据最强的后续方向，或明确保持现状；不得同时扩建多个方向 |
+| 7 | ✅ `D0-01` → `D0-06` Codex Desktop 当前任务接入 | 已完成 | 当前 Desktop 任务连续两轮写入同一 AFR session，idle 报告与 verify 一致 |
+| 8 | ✅ `R0-09` 20 次真实会话（20/20） | 已完成 | 20 条本地台账均含 session、发现、误报、边界、成本与继续使用意愿 |
+| 9 | ✅ `DEC-01` 数据门 | 已完成 | ADR-0002：保持现状，不启动新扩展；四类下一检查点已冻结 |
 
 独立环境等外部门槛等待期间不得用 CI 或开发机证据替代，也不得在人工验收未通过时提前打正式 tag。
 
@@ -612,7 +612,7 @@ M1 结束时必须能稳定回答：
 
 20 次真实会话使用本地评审表，不建设遥测服务。每条至少记录：AFR 版本与 commit、宿主/版本、session ID、任务类型、运行时长、会话目录大小、真实发现、误报、缺失证据、人工复核耗时、是否愿意再次使用。敏感内容只保留在本地，不为统计上传原始事件。
 
-完成 20 条后执行 `DEC-01`。一个方向必须有多个可定位 session 的重复证据和明确的用户价值才能启动；单次轶事或“以后可能需要”不够。满足以下条件才启动对应扩展：
+20 条已完成，`DEC-01` 结论见 [ADR-0002](./ADR-0002-r0-data-gate.md)：当前保持 CLI + 已交付 Codex Desktop Hook + 双宿主薄 skill。一个方向仍必须有多个可定位 session 的重复证据和明确的用户价值才能启动；单次轶事或“以后可能需要”不够。满足以下条件才重开对应扩展：
 
 - 会话扫描实际成为瓶颈，再加索引。
 - wrapper 看不到的工具/权限事件持续阻碍复核，再做 hooks/原生适配。

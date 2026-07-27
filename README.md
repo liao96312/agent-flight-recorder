@@ -57,7 +57,7 @@ flowchart LR
 
 ## Quick Start
 
-Requirements: Windows x64, Git, and the agent CLI you want to run. The v0.1.0 binary is not code-signed.
+Requirements: Windows x64, Git, and the agent CLI you want to run. Claude Code must already have a Claude login or compatible API provider authentication; AFR does not configure or persist credentials. The v0.1.0 binary is not code-signed.
 
 ```powershell
 $release = 'https://github.com/liao96312/agent-flight-recorder/releases/download/v0.1.0'
@@ -92,6 +92,8 @@ Inspect and verify the latest session:
 & $afr clean --older-than 30d       # preview only
 & $afr clean --older-than 30d --yes # delete the reviewed targets
 ```
+
+AFR never deletes sessions in the background. Without `--yes`, `afr clean` is always preview-only; `--yes` is the sole deletion authorization. Resumable Codex Desktop Hook sessions are protected and skipped by cleanup.
 
 See the copy-paste walkthrough in [Quick Start](docs/QUICKSTART.md).
 

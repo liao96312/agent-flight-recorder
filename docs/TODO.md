@@ -3,7 +3,7 @@
 > 与 [PROJECT_PLAN.md](./PROJECT_PLAN.md) 同步维护。任务只有在“验收”可重复通过后才能勾选。
 > 优先级：P0 发布阻塞；P1 正式可用增强；P2 有真实需求后再做。
 > 估算假设：1 名全职开发者，Windows x64 为 v0.1 发布平台。
-> 当前基线：v0.1.0 已公开发布并完成回下载复验；CLI wrapper、Claude Code skill 和三项 P1 可用性增强已完成。Codex Desktop 同一 session 已补充获得三次 `Stop`，D0-01 重开通过，正式接入进行中。
+> 当前基线：v0.1.0 已公开发布并完成回下载复验；CLI wrapper、Claude Code skill、三项 P1 可用性增强、Codex Desktop 正式 Hook、`M3-24` 人类可读报告首页、`R0-09` 二十次真实会话与 `DEC-01` 数据门均已完成。当前保持现有产品边界，等待 ADR-0002 的下一检查点。
 
 ## 0. 当前状态
 
@@ -31,9 +31,10 @@
 | 4 | ✅ `M3-09` → `M1-11` → `M2-07` | 已逐项完成；均为 P1 | 独立提交、测试和三平台 CI 通过 |
 | 5 | ✅ `REL-04` | 已完成 | 完整 release-check、CI、版本、commit、release notes 和 SHA 一致 |
 | 6 | ✅ `REL-05`；✅ `REL-06` | 已完成 | `v0.1.0` 公开 Release、回下载与公共安装复验均通过 |
-| 7 | ✅ `D0-01` → `D0-04`；`D0-05` → `D0-06` | 正式代码与合成 Windows 冒烟通过；等待 cachebuster/reinstall/restart | 当前 Desktop 任务连续两轮产生同一可验证 AFR session |
-| 8 | `R0-09` | 无；D0-06 后增加 `desktop_hook` 样本 | 完成 20 条本地真实会话评审，区分 `wrapper` / `desktop_hook` |
-| 9 | `DEC-01` | `R0-09` | 只选择一个有重复证据的方向，或明确保持现状 |
+| 7 | ✅ `D0-01` → `D0-06` | 已完成 | 正式 Hook 连续两轮复用同一 session，稳定采样均为 idle/valid；能力矩阵与历史保留边界一致 |
+| 8 | ✅ `M3-24` | 已完成 | 首屏回答状态、风险、变化和证据边界；CSP/脱敏顺序回归测试与全仓测试通过 |
+| 9 | ✅ `R0-09`（`20/20`） | 已完成 | 20 条本地真实会话评审已逐条验证并记入台账 |
+| 10 | ✅ `DEC-01` | 已完成 | ADR-0002 明确保持现状及四组可复验的重开条件 |
 
 ## 1. Phase 0：契约冻结（2 天）
 
@@ -439,6 +440,74 @@
   - 验收：完整收尾时在 stderr 固定输出六行：`Session: <id>`；`Evidence: observed=<排序 capability CSV>; not_observable=<排序 capability CSV>; truncated=<bool>`；`Changed: added=N modified=N deleted=N renamed=N pre_existing=N`；`Risks: total=N highest=<severity>`；`Exit: child=<code> state=<state>`；`Report: <绝对 report.html 路径>`。值与最终报告一致，不使用 L1/L2/L3；child stdout 逐字节不变，child stderr 不丢失；AFR 收尾失败仍保留稳定错误前缀和 session 路径。
   - 结果：精确格式测试、`RunResult` 集成测试、WSL 实际 CLI 冒烟和三平台 CI 通过。
 
+- [x] **M3-24 [P1] 将 HTML 报告重排为“人类决策首页”**
+  - 依赖：M3-01、M3-04、M3-05、M3-06、M3-22、M3-23、D0-06。
+  - 问题实证：当前报告先展示原始 capability、事件计数和长时间线，风险、文件变化与证据缺口被推到页面后部；普通用户无法快速判断“有没有录到、要不要处理、改了什么、哪些地方 AFR 看不到”。`ReportView` 已包含实现所需数据，本项不新增报告 schema 或运行时依赖。
+  - 用户问题按以下优先级固定，不再用事件数量主导首页：
+    1. **录到了吗，现在是什么状态？**
+    2. **有没有需要我立即处理的问题？**
+    3. **AI 本轮改了什么，哪些改动在记录前就已存在？**
+    4. **AFR 看到了什么，哪些行为没有证据？**
+    5. AI 做了哪些工具动作、经历了哪些事件？
+    6. session ID、原始枚举、完整性链与输出等技术细节是什么？
+  - 首屏版式冻结为下列信息顺序；数值仅为结构示例，生成时必须来自当前报告真值：
+
+    ```text
+    ┌─ Agent Flight Recorder · <项目> · <宿主> ── [上一轮已记录，等待下一轮]
+    │  未发现规则可确认的风险
+    │  AFR 只判断已记录到的证据，这不代表绝对安全。
+    ├─ 需检查 0 ── 本轮文件变化 4 ── 记录前已有 3 ── 证据缺口 3
+    ├─ 你需要检查
+    │  <最高优先事项与第一条可执行建议；没有事项时不制造空告警>
+    ├─ 本次改了什么
+    │  <新增 / 修改 / 删除 / 重命名前几项>；记录前已有改动独立列出且不归因本轮
+    ├─ 证据边界
+    │  已记录：<白话能力列表>    未监控：<白话缺口列表>
+    └─ 技术详情（默认收起）
+       <事件计数 / 时间线 / 输出 / session / 原始枚举 / 完整性信息>
+    ```
+
+  - [x] **M3-24a 首屏状态与结论条**
+    - `idle` 显示为“上一轮已记录，等待下一轮”，不得写成“任务已完成”；`starting/running/finalizing` 显示“正在记录”；`completed` 才显示“任务已结束并保存”。`failed` 必须区分任务执行失败与证据保存状态；`interrupted/incomplete` 显示需要检查的记录状态。未知状态保留原值并标记“未知状态”，不得猜测。
+    - `highest=none` 显示“未发现规则可确认的风险”，旁边固定显示“AFR 只判断已记录到的证据，这不代表绝对安全”；禁止使用“安全”“完全正常”“无风险”等超出证据的结论。
+    - 有 finding 时显示“发现 N 项需要检查，最高：<白话级别>”，并在首屏给出最高项的第一条 `Action`；`incomplete/partial/truncated/omitted` 作为证据问题进入“需要检查”，不得藏入技术详情。
+  - [x] **M3-24b 四个摘要指标**
+    - 固定显示“需检查”“本轮文件变化”“记录前已有改动”“证据缺口”；状态单独放在结论条。
+    - event 总数、session ID、原始 state/risk/capability code 不作为首页主指标；工具动作数量只在活动/技术详情中出现。
+    - 指标为零时使用中性白话，不用颜色暗示绝对安全；指标计算必须确定性、可由现有报告字段复算。
+  - [x] **M3-24c 文件变化与归因**
+    - “本次文件变化”优先展示 Added / Modified / Deleted / Renamed 的总数与前几条路径；列表保持现有有界策略，超限必须显示 omitted 数量。
+    - `PreExisting` 独立成区，固定解释“开始记录前已存在，不归因于本次 AI”；不得与本次 Modified 合并，也不得省略为零以外的记录前改动。
+    - 首页只给摘要与前几项，完整有界列表放在后续文件详情；路径继续经过现有转义与脱敏。
+  - [x] **M3-24d 证据能力白话映射**
+    - 首页使用“已记录 / 未监控”两栏，原始 code 只在技术详情保留；未知 capability 回退原值，不能被静默丢弃。
+    - `native_tool_events` → “宿主上报的本地工具调用”；`workspace_git` → “Git 工作区变化”；`workspace_scan` → “项目文件扫描”；`local_policy` → “本地规则检查”。
+    - `process` → “进程级活动”；`network_monitor` → “实际网络流量”；`os_file_monitor` → “操作系统级文件活动”。每项严格按当前 `observed/not_observable` 真值进入对应栏，不得把安装、启用或信任推断为已观察。
+    - 未监控区固定说明：“未监控表示 AFR 没有这类证据，不能据此判断该行为没有发生。”partial、truncated、binary、omitted 等证据降级也在此处显眼说明。
+  - [x] **M3-24e 风险与行动建议**
+    - 没有 finding 时不渲染空风险表，只显示带边界说明的确定性结论；有 finding 时按严重级别和稳定顺序展示总数、最高项、证据及行动建议。
+    - “需要检查”只容纳真实 finding、异常状态或证据降级；不能用安全分数、模糊健康度或事件数量制造告警。
+    - 完整性只表示本地证据一致性，不得描述为数字签名、远程见证或行为真实性；没有实际执行 `afr verify` 的结果时只能提示“可运行 afr verify”，不得写“校验通过”。
+  - [x] **M3-24f 渐进披露与阅读顺序**
+    - 页面固定顺序为“结论 → 需要检查 → 本次文件变化 → 记录前已有改动 → 证据边界 → 全部风险/文件 → 技术详情”。首屏必须出现结论、四指标、变化摘要和证据边界。
+    - Event counts、timeline、stdout/stderr、全局筛选、session ID、seq、原始枚举和完整性链放入默认收起的原生 `<details>`；保留现有筛选能力、1,000 行上限、前后 500 行策略、omission marker 和 512 UTF-8 bytes 摘要上限。
+    - 活动类型增加白话标签，原始事件类型仍可查看；不得生成或伪造对话摘要，不能把 event timeline 当成用户聊天记录。
+  - [x] **M3-24g 响应式、可访问性与安全边界**
+    - 只使用现有 Go HTML 生成、语义 HTML、原生 `<details>` 与少量 CSS Grid/Flex；报告继续是离线单文件，不新增 SPA、图表、图标库、字体、CDN、远端资源或遥测。
+    - 当前迭代使用中文界面并设置 `lang="zh-CN"`；未知原值可回退英文。不为尚未出现的非中文需求引入 i18n 框架或主题系统。
+    - 1366×768 首屏无需滚动即可回答前四个核心问题；360px 起摘要自动单列、页面整体无横向滚动，技术表格只在自身容器内滚动；390×844 作为 Desktop 窄宽人工复验尺寸。
+    - 标题层级、键盘焦点和 `<details>` 可操作；风险与状态必须有文字，不得只靠颜色表达。现有 CSP、HTML 转义、脱敏和无外链约束保持不变。
+  - [x] **M3-24h 自动化与人工验收**
+    - [x] 固定 fixtures 至少覆盖：`idle+none`、active、completed、high finding、failed/incomplete、PreExisting、全 observed、混合 not_observable、partial/truncated/binary/omitted、未知 capability。
+    - [x] DOM 顺序断言结论/风险/文件/证据边界均早于时间线；首页不出现原始 capability code；原始值在技术详情仍可验证；`idle`、`none` 和 PreExisting 的免责声明逐字断言。
+    - [x] 既有恶意文本转义、CSP、输出/路径边界、10 万事件最多 1,000 行、首尾保留与 omission marker 测试全部继续通过；不降低性能和确定性。
+    - [x] 当前 Codex Desktop session 的下一次正常 `Stop` 已生成新版报告；产品负责人收到候选链接后于下一 turn 指示“继续”，接受当前首页进入数据门。旧冻结报告不批量重写；内置浏览器拒绝 `file://` 的自动视觉检查事实保留，不伪造浏览器截图结果。
+    - [x] **十秒验收**：当前项目报告首屏直接给出“上一轮已记录”“未发现规则可确认的风险”“6 个本轮文件变化”“3 个记录前已有改动”“4 个证据缺口”，无需展开技术详情即可回答五个核心问题。
+  - 非目标：不生成 LLM 自然语言总结，不新增依赖/schema/i18n 基建，不上传远端，不隐藏 `not_observable`，不宣称“绝对安全”，不补录或总结聊天正文，不在本项建设历史报告迁移器。
+  - 最小实现范围：实现阶段优先只改 `internal/report_html.go` 与对应测试；仅当现有 `ReportView` 确实无法派生验收字段时，才提出最小数据层变更并先更新本 TODO。
+  - 2026-07-22 状态：a-f 与自动化验收已完成，复用现有 `ReportView`，实际只改 HTML 展示层与测试，`go test ./...` 和 `git diff --check` 通过。候选版已生成真实 session `20260722T075925.653441900Z-ced56546bbc86ebe47f97da5`（7 events、6 evidence、3 derived，`afr verify` 通过），并安装到 Hook 既有 `C:\Users\Administrator\.local\bin\afr.exe`；命令定义未变化，无需重新信任，旧二进制备份为 `C:\tmp\afr.exe.before-m3-24`。Codex 内置浏览器按安全策略拒绝自动打开本地 `file://` 报告，未绕过；因此 g/h 的两种尺寸肉眼检查与十秒理解测试保持未勾选，待当前 turn 正常 `Stop` 生成新报告后由产品负责人直接确认。
+  - 2026-07-23 补充：R0-09 的只读评审 session `20260723T010847.884888900Z-65447f7616fbcdc928b6b659` 发现模板渲染后整体脱敏可能改写 CSS/JS/CSP 并使哈希失效。已在共享 HTML 写入点改为“先脱敏 `ReportView` 动态数据，再渲染常量模板并原子写入”，自定义规则同时匹配动态秘密、`system-ui` 和 `script-src` 的回归测试证明动态数据被替换而 CSP/资源哈希保持不变；`go test ./...`、session verify 与安装 SHA 一致性均通过。修复版已安装到既有 Hook 路径，命令未变、无需重新信任；上一构建备份为 `C:\tmp\afr.exe.before-csp-redaction-fix`。
+
 ## 6. M4a：Codex Desktop 当前任务接入（进行中，v0.2）
 
 产品负责人于 2026-07-22 明确要求记录 Codex Desktop 当前任务，因此以下桌面端最小切片不再等待 `R0-09 / DEC-01`。目标是插件通过 Codex 官方 lifecycle hooks 记录**安装并信任之后的新桌面任务与后续 turn**，不再嵌套启动 `codex exec`。规范依据：<https://learn.chatgpt.com/docs/hooks>。
@@ -446,6 +515,8 @@
 边界先冻结：
 
 - 不追溯 hook 安装、启用或信任之前的消息；不得把当前已运行任务的历史补写成完整证据。
+- Codex Desktop 没有 `/hooks` 斜杠命令；Desktop 的入口是“设置 → Hooks”或“插件 → AFR → Review/Trust all”。交互式 Codex CLI 的 `/hooks` 只能作为同一 `CODEX_HOME` 下的备用信任入口，CLI 成功本身不算 Desktop 验收。
+- 非托管 Hook 的信任绑定到当前完整定义的 hash；命令、事件、matcher、timeout 等定义变化后会成为 `modified` 并被跳过。不得手改 `trusted_hash`，不得使用 trust bypass，也不得把个人插件提升成 managed hook 绕过用户同意。
 - 不把 `transcript_path` 当稳定格式解析；只消费正式 hook JSON 字段。
 - `Stop` 是 turn 结束，不是可靠的 SessionEnd；报告可处于 `idle`，不得伪造 `completed`。
 - Hosted WebSearch 等不经过本地 function-tool hook 的路径保持 `not_observable`；只有实际收到 hook 事件后才把对应 native capability 标为 `observed`。
@@ -453,9 +524,9 @@
 
 - [x] **D0-01 [P0] Codex Desktop 实机 hook 契约探针（停止门）**
   - 依赖：v0.1.0 已发布；目标 Codex Desktop 版本可安装本地 AFR 插件。
-  - 验收：使用插件默认 `hooks/hooks.json`，经 `/hooks` 审阅并信任后新建桌面任务；以不含用户正文/secret 的本地探针确认 `SessionStart`、`UserPromptSubmit`、至少一个本地 `PreToolUse/PostToolUse` 与 `Stop` 实际触发，记录 Desktop/CLI/plugin 版本、正式字段名和未覆盖事件。
+  - 验收：使用插件默认 `hooks/hooks.json`，经宿主支持的入口审阅并信任后新建桌面任务；以不含用户正文/secret 的本地探针确认 `SessionStart`、`UserPromptSubmit`、至少一个本地 `PreToolUse/PostToolUse` 与 `Stop` 实际触发，记录 Desktop/CLI/plugin 版本、正式字段名和未覆盖事件。Desktop 本身没有 `/hooks` 命令；探针期间的 `/hooks` 操作发生在独立 Codex CLI。
   - 停止：上述四类事件任一缺失，或桌面端不加载 plugin-bundled hooks，则暂停 D0-02..D0-06，保留探针证据并报告；不得转而抓私有日志、轮询 UI 或解析不稳定 transcript。
-  - 2026-07-22 结果：CLI 五事件契约通过；Desktop 同一 session 实际触发 `SessionStart(resume/compact)`、`UserPromptSubmit`、`PreToolUse/PostToolUse`，并在后续三个普通 turn 重复触发 `Stop`。早期两个缺失保留为异常证据，停止门按补充实证重开通过，详见 `D0-01-HOOK-PROBE.md`。
+  - 2026-07-22 结果：旧 `powershell.exe ... probe.ps1` 定义在 Desktop 同一 session 实际触发 `SessionStart(resume/compact)`、`UserPromptSubmit`、`PreToolUse/PostToolUse`，并在后续三个普通 turn 重复触发 `Stop`，故字段契约通过，详见 `D0-01-HOOK-PROBE.md`。该结果不证明后来替换的 `afr.exe hook --host codex` 已加载、可解析或受信任。
 
 - [x] **D0-02 [P0] 冻结 hook-only session 与状态映射**
   - 依赖：D0-01。
@@ -465,7 +536,7 @@
 
 - [x] **D0-03 [P0] 实现最小 `afr hook --host codex` 摄取入口**
   - 依赖：D0-02、M2 脱敏与完整性链。
-  - 验收：从 stdin 读取不超过 1 MiB 的正式 hook JSON；只白名单映射 Session、prompt、local tool、permission、subagent 与 stop 元数据，未知对象只记录类型、大小、hash 和 omitted 原因；所有内容复用现有 redactor 后才写盘。
+  - 验收：从 stdin 读取不超过 1 MiB 的正式 hook JSON；当前只白名单映射 `SessionStart`、`UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`Stop` 及其中允许的 prompt/local-tool/`permission_mode` 元数据，未知对象只记录类型、大小、hash 和 omitted 原因；所有内容复用现有 redactor 后才写盘。独立 `PermissionRequest`、`SubagentStart`、`SubagentStop` 不在当前插件注册范围，不得宣称已覆盖。
   - 验收：正常 stdout 为空，不向模型注入文本；错误使用稳定前缀且默认 fail-open，不阻断桌面任务。不得读取 `transcript_path` 内容。
   - 结果：已实现 1 MiB 上限、正式五事件白名单、未知字段 type/size/SHA-256 omission、统一 redactor、`AFR_HOOK:` fail-open 和 transcript 忽略；两轮 Windows 合成 Hook 形成 10 events / 6 evidence / 3 derived 并 verify 通过。
 
@@ -475,16 +546,38 @@
   - 边界：hook handler 超时设置为 5 秒；锁方案未出现可复现瓶颈前不建设单写者或 daemon。
   - 结果：按 host session 指纹使用 O_EXCL 锁、PID/time owner、30 秒且进程已退出才恢复；20 个并发 Hook 自测最终 24 events 且 verify 通过。CLI 锁等待和 workspace scan 各限制 2 秒，超预算 fail-open/partial。
 
-- [ ] **D0-05 [P0] 打包 Codex Desktop hooks 与可见能力报告**
+- [x] **D0-05 [P0] 打通正式 Codex Desktop Hook 激活路径（停止门）**
   - 依赖：D0-03、D0-04。
-  - 验收：插件根默认 `hooks/hooks.json` 使用 command/`commandWindows` 调用同一 `afr hook --host codex`，不复制存储、脱敏、hash 或报告逻辑；安装/升级后必须重新通过 `/hooks` 信任检查，未信任时 UI 与 AFR 报告均不得宣称已覆盖。
-  - 验收：报告列出实际触发事件、hook 版本、host session 指纹和缺口；plugin disable/remove 不删除或改写既有 `.afr/sessions`。
-  - 2026-07-22 状态：正式 `hooks/hooks.json`、skill 边界、插件 validator、Go 全量测试与 Windows 合成冒烟已通过；待 cachebuster、重装、`/hooks` 信任复核和 Desktop 完整重启。
+  - **2026-07-22 根因实证（修复前）**：Desktop 26.715.9079 / bundled core 0.145.0 已精确发现五个 `afr@personal` Hook，均为 `enabled=true`，当前命令均为 `afr.exe hook --host codex`；但 app-server `hooks/list` 返回的 `trustStatus` 全部是 `modified`。宿主会在启动 AFR 进程之前跳过它们，因此重启后没有 `hook/started`、新 AFR session 或正式映射；当前首因不是 AFR stdin、PATH 或落盘代码。
 
-- [ ] **D0-06 [P0] Codex Desktop 当前任务 E2E**
+    | Event | 已保存的旧探针 hash | 当前正式定义 hash | 状态 |
+    |---|---|---|---|
+    | `PreToolUse` | `7d0c4109d3b…` | `1991810ed6e…` | `modified` |
+    | `PostToolUse` | `be3d0e6e8e7c…` | `8b169577038d…` | `modified` |
+    | `SessionStart` | `1adc4f2f4b73…` | `fac8e885c12c…` | `modified` |
+    | `UserPromptSubmit` | `eac64a629e19…` | `03bc1d0df629…` | `modified` |
+    | `Stop` | `c56968bc0499…` | `a9a59627df33…` | `modified` |
+
+  - **已排除的首因**：插件未安装/未启用（五项已列出且 enabled）；Hook feature 未开启（`hooks=stable,true`）；仅仅缺少再次 cachebuster（当前正式定义已被 `hooks/list` 发现）。AFR 二进制解析与事件协议尚未进入执行阶段，不能在 Hook 受信任前归因。
+  - [x] **D0-05a 冻结定义与基线**：在本门完成前不再改 `hooks/hooks.json` 的 event、matcher、command、timeout/status；记录 Desktop/core、AFR、plugin 版本、当前五个 hash、最新 AFR session 和测试开始时间。版本号不得拼进 Hook command，避免每次升级无意义地重新信任。
+    - 结果：Desktop 26.715.9079；AFR `0.1.0-dev` / commit `00c76ca7aed7`；plugin `0.1.0`；安装缓存 `hooks.json` SHA-256 `A943A3A8D9C97093B75AA2C8905996E8309159D4CF57014FA0E9C3266B8E57C7`；信任前 latest session `20260722T044941.694847000Z-112e3e8b376f1ac86377e9a8`。
+  - [x] **D0-05b 通过正确入口逐项信任**：Desktop 没有 `/hooks`；用户已在此前消息中明确授权“信任”。由于 Desktop 自动化策略禁止脚本控制 Codex Desktop UI，本次使用宿主官方 app-server `config/batchWrite` 原子 upsert 五个当前 `trusted_hash` 并热重载；未覆盖 Ponytail 或其他 Hook。一次无效 camelCase 试写被立即识别并精确清理，最终配置只保留受识别的 `trusted_hash`。
+  - [x] **D0-05c 做信任预检**：全新 app-server 进程的只读 `hooks/list` 确认五项同时满足 `enabled=true`、`trustStatus=trusted`、`currentHash == trusted_hash`，warnings/errors 均为空。仅看到 `config.toml` 中存在 hash 或 CLI 自身可执行均不作为验收，本项以回读结果为准。
+  - [x] **D0-05d 只做一次冷启动验证**：缓存与信任就绪后完整退出并重启 Desktop，恢复当前任务，发送 prompt 并触发本地只读工具调用。验收必须在基线之后同时出现宿主 Hook 启动、新 `capture_mode=desktop_hook` AFR session/映射和对应正式事件；手工 stdin、合成测试或嵌套 `codex exec` 均不算。
+    - 结果：当前 Desktop 恢复任务自动创建 AFR session `20260722T063058.701737900Z-bc9105b4a599c4d584e73d7a`，`capture_mode=desktop_hook`、host=`codex`、workspace=`D:\ai project`，实际记录 `host_session_started`、`prompt_submitted` 和多组 `tool_started/tool_finished`；映射文件同步生成。首轮真实 `Stop` 已写入 `turn_stopped` seq 29，并于 2026-07-22 14:34:10 生成 manifest 和报告；第二轮 `Stop` 后的后台稳定采样于 14:37:01 得到 `state=idle`、47 events、6 evidence、3 derived、`verify_exit=0`。下一条 prompt 会按设计把同一 session 重新置为 `active`，故稳定 verify 必须在 `Stop` 后、下一条 prompt 前采集。
+  - [x] **D0-05e 修正能力报告真值**：`native_tool_events` 初始必须为 `not_observable`，只在实际收到 `PreToolUse/PostToolUse` 后变为 `observed`；报告只列出真实交付的事件和缺口。installed/enabled/trusted 只作为外部 `hooks/list` 预检证据，AFR handler 无受支持输入时不得自行推断；hook/plugin version 无法由事件观察时写 `not_observable`，不得虚构。
+    - 结果：`hookCapabilities` 在 session 创建时显式写 `native_tool_events=not_observable`，在 `Stop` 时仅依据本 session 已记录的 `tool_started/tool_finished` 切换为 `observed`；未新增 AFR 无法观察的 installed/enabled/trusted/version 字段。测试同时覆盖有本地工具与无本地工具的新 session；`go test ./internal` 和 `go test ./...` 通过。使用 go.dev 官方 Go 1.26.5 Windows x64 便携包构建，已将新 `afr.exe` 安装到现有路径，旧二进制备份为 `C:\tmp\afr.exe.before-d0-05e`；Hook 命令未变化，无需重新信任。
+  - [x] **D0-05f 保持历史证据不变**：plugin disable/remove 不删除或改写既有 `.afr/sessions`；D0-06 通过后同步 `PROJECT_PLAN.md` 的 Desktop Hook 真值。
+    - 结果：插件包没有 uninstall/remove/clean `.afr` 的代码，插件缓存/数据与证据根 `~/.afr/sessions` 分离；二进制升级后，升级前 session `20260722T044941.694847000Z-112e3e8b376f1ac86377e9a8` 仍以 281 events、6 evidence、3 derived 通过 verify。未为证明路径隔离而破坏性卸载正在工作的插件；若未来新增 uninstall 脚本，再增加隔离环境删除测试。`PROJECT_PLAN.md` 已同步。
+  - **分流与止损**：只允许一次正式信任、一次完整重启和一次一次性任务验证。若五项确认 `trusted` 后仍无 `hook/started`，记录版本与 `hooks/list` 证据并将 Desktop 26.715.9079 标记为宿主调度 `blocked/unsupported`；若有 `hook/started` 但无 AFR session，才检查 Desktop 进程 PATH 中的 `afr.exe` 解析、退出码和 stdin 协议。任一路径遇到首个可复现卡点即停止，不再循环 cachebuster/reinstall/restart，不手改信任 hash，不启用 `--dangerously-bypass-hook-trust`，不抓 transcript 或轮询 UI。
+  - 规范依据：[Codex Hooks](https://learn.chatgpt.com/docs/hooks)、[Desktop slash commands](https://learn.chatgpt.com/docs/reference/slash-commands) 和 [app-server hooks/list](https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md)。
+
+- [x] **D0-06 [P0] Codex Desktop 当前任务 E2E**
   - 依赖：D0-01..D0-05。
-  - 验收：在 Codex Desktop 新任务中连续完成两轮 prompt，覆盖一个本地 shell/tool 调用和一次文件编辑；全程不启动嵌套 `codex exec`。两次 `Stop` 后仍指向同一 AFR session，状态为 `idle`，工作区 delta、风险、事件时间线和 `afr verify` 一致。
-  - 验收：重启/恢复桌面任务不新建重复 session；禁用 hook 后不再增加 native events，旧 session 仍可 show/verify。记录 Desktop、AFR、插件版本、host session 指纹、AFR session ID、事件覆盖与复盘结果。
+  - 前置：D0-05 的五项 `hooks/list` 状态全部为 `trusted`，并已留下至少一条由当前正式命令产生的 Desktop 基线事件；否则不得开始。Hook 只能记录安装并信任后的未来 turn，不补录本任务既有历史。
+  - 验收：完整重启后恢复当前 Codex Desktop 任务，连续完成两轮 prompt，覆盖一个本地 shell/tool 调用和一次文件编辑；全程不启动嵌套 `codex exec`。两次 `Stop` 后仍指向同一 AFR session，状态为 `idle`，工作区 delta、风险、事件时间线和 `afr verify` 一致。
+  - 验收：无本地工具的 turn 保持 native tool `not_observable`，收到成对 `PreToolUse/PostToolUse` 后才标为 `observed`。记录 Desktop/core、AFR、插件版本、`hooks.json` SHA-256、host session 指纹、AFR session ID 与每类实际事件数；禁用插件后只验证事件停止追加和旧 session 仍可 show/verify，不推断 AFR 无法观察的宿主信任状态。
+  - 结果：当前任务连续两轮使用修复后的 `afr 0.1.0-dev`（commit `00c76ca7aed7`，built `2026-07-22T06:44:56Z`），均复用 session `20260722T063058.701737900Z-bc9105b4a599c4d584e73d7a`。Stop 后后台稳定采样分别为 91 events / 3 Stops 与 100 events / 4 Stops；两次均 `state=idle`、6 evidence、3 derived、`verify_exit=0`，能力矩阵按实际本地工具事件显示 `native_tool_events=observed`。两轮覆盖本地 shell/tool 与仓库文件编辑，全程未启动嵌套 `codex exec`。
 
 ### M4b：仍由数据门控制的后续项
 
@@ -555,14 +648,15 @@ Claude Code hooks、跨宿主统一 SessionEnd、Hosted tools 覆盖、历史对
   - 验收：从 GitHub Release 重新下载附件，复算 SHA-256，在独立目录运行 `version`、`list --json`；按 tag 内的公开文档完成 Codex / Claude 插件发现或安装，不再修改已经发布的 tag 内容。
   - 结果：从公开 Release 下载到独立目录 `D:\afr-release-verify-v0.1.0`，exe SHA-256 为 `165aabcd558d95d1a8fe2617ef0df19939492815ca572dc77d95e37d95ec95ac`，与附件校验和一致；`version` 为 `0.1.0 commit=a67c913dc626`，空 profile 的 `list --json` 为空。Codex 从公开 `liao96312/agent-flight-recorder@v0.1.0` marketplace 安装 `afr@personal` 0.1.0 成功并恢复原本地配置；Claude Code 2.1.185 对 tag checkout 的 marketplace/plugin strict validator 与 `--plugin-dir` 发现均通过。
 
-- [ ] **R0-09 [P1] 20 次真实会话评审**
+- [x] **R0-09 [P1] 20 次真实会话评审**
   - 依赖：REL-06；D0 切片不是依赖。
   - 验收：20 条 wrapper / Claude skill 真实任务均记录 AFR version/commit、capture mode、host/version、session ID、任务类型、运行时长、目录大小、真实发现、误报、证据缺口、复盘耗时和继续使用意愿；不加遥测服务，不上传原始证据。
-  - 2026-07-22 状态：进行中 `2/20`；本地台账见 `R0-09-OBSERVATIONS.md`，建表任务本身不计入 observation。已发现 Windows 父进程终止后的子进程清理缺口，以及 PATH 中同 semver 旧构建导致的功能漂移。
+  - 2026-07-27 结果：完成 `20/20`；本地台账见 `R0-09-OBSERVATIONS.md`。重复证据集中在 Desktop 工具结束事件缺口、wrapper 逐行证据体积/复盘噪声、受控源码敏感词 high 误报、运行环境与构建身份漂移。第 15–17 条已完成 clean 保护、唯一 `--yes` 删除授权和已安装 skill 缓存刷新；第 20 条安全审查补齐 `active/idle × older-than/max-bytes` 四组合回归，`go test ./...` 通过。未出现需要同时扩建多个方向的证据。
 
-- [ ] **DEC-01 [P1] 执行 20 次会话数据门**
+- [x] **DEC-01 [P1] 执行 20 次会话数据门**
   - 依赖：R0-09。
   - 验收：形成 ADR，按多个可定位 session 的重复证据只选择一个方向（例如 hooks、性能索引或团队汇总），或明确保持 wrapper；写清收益、成本、非目标和下一检查点。
+  - 结果：已形成 [ADR-0002](./ADR-0002-r0-data-gate.md)，决定保持 `afr` CLI + 已交付 Codex Desktop Hook + 双宿主薄 skill，不启动新 hooks、索引、团队汇总、签名、回放或来源格式升级。四组重复证据均有明确边界，但没有一个同时满足“重复阻碍具体复盘、存在可实现信号、收益超过格式/安全成本”；ADR 已写明四类重开阈值。
 
 ## 8. 暂缓池（不是当前承诺）
 
@@ -605,11 +699,11 @@ F0 契约
   -> REL-02 Claude Code 真实 skill 冒烟（已完成）
   -> REL-04 最终候选一致性检查（已完成）
       -> REL-05..REL-06 正式 v0.1.0 发布（已完成）
-      -> D0-01..D0-04 Desktop hook 契约与内核（已完成）
-          -> D0-05..D0-06 正式插件重装与当前任务 E2E
+      -> D0-01..D0-06 Desktop 正式 Hook 与当前任务 E2E（已完成）
+      -> M3-24 人类决策首页（十秒看懂状态 / 风险 / 变化 / 证据边界）
       -> R0-09 二十次 wrapper / desktop_hook / Claude skill 真实会话（逐条记录 capture mode/version/commit）
           -> DEC-01 单方向数据门
               -> [仅证据触发] M4 hooks / 其他一个扩展方向
 ```
 
-M1 与正式发布门槛已经通过。`D0-01` 已由同一 Desktop session 的三次 `Stop` 补充证据重开通过，`D0-02..D0-04` 已完成，当前只推进 `D0-05..D0-06` 的正式插件与 E2E。`R0-09` 继续收集 20 次 wrapper / desktop_hook / Claude skill 真实会话；没有重复证据前，不扩展 Claude hooks、Hosted tools 适配、历史导入、Dify、索引、签名或团队后台。
+M1、正式发布门槛、`D0-01..D0-06` Codex Desktop 当前任务接入、`M3-24` 人类决策首页、`R0-09` 二十次真实会话与 `DEC-01` 均已通过。当前按 ADR-0002 保持现有产品边界；没有新的成组证据前，不扩展 Claude hooks、Hosted tools 适配、历史导入、Dify、索引、签名或团队后台。

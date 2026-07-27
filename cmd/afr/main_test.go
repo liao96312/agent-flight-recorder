@@ -102,15 +102,22 @@ func TestCleanValueParsers(t *testing.T) {
 	}
 }
 
-func TestCleanConfirmationDefaultsToNo(t *testing.T) {
-	for _, test := range []struct {
-		input string
-		want  bool
-	}{{"\n", false}, {"no\n", false}, {"yes\n", true}, {"Y\n", true}} {
-		var output bytes.Buffer
-		got, err := confirmClean(strings.NewReader(test.input), &output)
-		if err != nil || got != test.want || output.String() == "" {
-			t.Fatalf("input=%q got=%t want=%t output=%q error=%v", test.input, got, test.want, output.String(), err)
-		}
+func TestCleanWithoutYesIsPreviewOnly(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("USERPROFILE", home)
+	id := "20200101T000000.000000000Z-000000000000000000000000"
+	root := filepath.Join(home, ".afr", "sessions", id)
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	metadata := `{"format_version":1,"id":"` + id + `","state":"completed","started_at":"2020-01-01T00:00:00Z","finished_at":"2020-01-01T00:00:01Z"}`
+	if err := os.WriteFile(filepath.Join(root, "session.json"), []byte(metadata), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code := cleanCommand([]string{"--older-than", "1h"}); code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if _, err := os.Stat(root); err != nil {
+		t.Fatalf("preview deleted session: %v", err)
 	}
 }

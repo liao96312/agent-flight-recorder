@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -45,6 +46,19 @@ func TestReportViewIsSharedAndDeterministic(t *testing.T) {
 	}
 }
 
+func TestReportMarksPartialNativeToolOutcomes(t *testing.T) {
+	view := NewReportView(
+		SessionMetadata{Capabilities: []string{"native_tool_events=observed"}},
+		WorkspaceDelta{},
+		nil,
+		map[string]uint64{"tool_started": 2, "tool_finished": 1},
+		nil,
+	)
+	if !reflect.DeepEqual(view.Limitations, []string{"native_tool_outcomes=partial"}) {
+		t.Fatalf("limitations = %v", view.Limitations)
+	}
+}
+
 func TestHTMLReportEscapesInjectionAndBoundsContent(t *testing.T) {
 	payload := `</script><img src="https://example.invalid/leak">`
 	added := make([]string, 1001)
@@ -71,13 +85,177 @@ func TestHTMLReportEscapesInjectionAndBoundsContent(t *testing.T) {
 		t.Fatalf("unsafe HTML output: %s", document)
 	}
 	decoded := html.UnescapeString(string(document))
-	for _, expected := range []string{contentHash(reportScript), contentHash(reportStyle), `id="filter"`, "1 more paths omitted", "Preview is limited to 4 KiB"} {
+	for _, expected := range []string{contentHash(reportScript), contentHash(reportStyle), `id="filter"`, "另有 1 条本次变化路径未在 HTML 中列出", "每个 stream 的预览最多 4 KiB"} {
 		if !strings.Contains(decoded, expected) {
 			t.Fatalf("HTML missing %q", expected)
 		}
 	}
-	if len(view.Output[0].Preview) > reportPreviewLimit || bytes.Count(document, []byte("界")) > reportPreviewLimit/len([]byte("界"))+1 {
+	decodedDocument := html.UnescapeString(string(document))
+	previewStart := strings.Index(decodedDocument, "<pre>")
+	previewEnd := strings.Index(decodedDocument, "</pre>")
+	if len(view.Output[0].Preview) > reportPreviewLimit || previewStart < 0 || previewEnd < previewStart || len([]byte(decodedDocument[previewStart+len("<pre>"):previewEnd])) > reportPreviewLimit {
 		t.Fatal("HTML output preview exceeded its byte limit")
+	}
+}
+
+func TestHTMLReportRedactsDataWithoutChangingCSPAssets(t *testing.T) {
+	view := NewReportView(
+		SessionMetadata{ID: "ACME-1234", State: "completed", Workspace: "ACME-1234"},
+		WorkspaceDelta{Added: []string{"ACME-1234.txt"}},
+		nil,
+		nil,
+		nil,
+	)
+	redactor, err := newRedactor(&Fingerprinter{}, []secretDetector{{
+		name:    "custom",
+		pattern: regexp.MustCompile(`system-ui|script-src|ACME-[0-9]+`),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	if err := writeHTMLReport(root, view, redactor); err != nil {
+		t.Fatal(err)
+	}
+	document, err := os.ReadFile(filepath.Join(root, "report.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(document)
+	for _, expected := range []string{"system-ui", "script-src", contentHash(reportScript), contentHash(reportStyle), "[REDACTED:custom:"} {
+		if !strings.Contains(text, expected) {
+			t.Fatalf("HTML missing %q", expected)
+		}
+	}
+	if strings.Contains(text, "ACME-1234") {
+		t.Fatal("HTML retained unredacted report data")
+	}
+}
+
+func TestReportStateLabelsDoNotOverclaimCompletion(t *testing.T) {
+	tests := []struct {
+		state          string
+		label          string
+		needsAttention bool
+	}{
+		{state: "idle", label: "上一轮已记录，等待下一轮"},
+		{state: "starting", label: "正在记录当前任务"},
+		{state: "running", label: "正在记录当前任务"},
+		{state: "finalizing", label: "正在记录当前任务"},
+		{state: "completed", label: "任务已结束并保存"},
+		{state: "failed", label: "任务执行失败；本报告已保存，请检查失败原因", needsAttention: true},
+		{state: "interrupted", label: "任务被中断，请检查记录完整性", needsAttention: true},
+		{state: "incomplete", label: "记录不完整，需要检查", needsAttention: true},
+		{state: "future", label: "未知状态：future", needsAttention: true},
+	}
+	for _, test := range tests {
+		t.Run(test.state, func(t *testing.T) {
+			got := reportState(test.state)
+			if got.Label != test.label || got.NeedsAttention != test.needsAttention {
+				t.Fatalf("state %q = %+v", test.state, got)
+			}
+		})
+	}
+}
+
+func TestHTMLReportPutsHumanDecisionSummaryBeforeTechnicalEvidence(t *testing.T) {
+	view := NewReportView(
+		SessionMetadata{
+			ID:          "desktop-session",
+			State:       "idle",
+			Workspace:   `D:\ai project`,
+			Host:        "codex",
+			CaptureMode: "desktop_hook",
+			Capabilities: []string{
+				"future_capability=unknown",
+				"local_policy=observed",
+				"native_tool_events=observed",
+				"network_monitor=not_observable",
+				"os_file_monitor=not_observable",
+				"workspace_git=observed",
+				"workspace_scan=observed",
+			},
+		},
+		WorkspaceDelta{
+			Added:           []string{"new.txt"},
+			Modified:        []string{"changed.txt"},
+			PreExisting:     []string{"before.txt"},
+			Partial:         true,
+			OmissionReasons: []string{"binary_content_omitted"},
+			Patch: WorkspacePatchSummary{
+				Truncated: true,
+				Omitted:   []PatchOmission{{Path: "large.bin", Reason: "binary"}},
+			},
+		},
+		nil,
+		map[string]uint64{"tool_started": 2, "tool_finished": 1},
+		[]ReportStream{{Stream: "stdout", Truncated: true}},
+	)
+	document := renderHTMLForTest(t, view)
+	for _, expected := range []string{
+		`lang="zh-CN"`,
+		"上一轮已记录，等待下一轮",
+		"未发现规则可确认的风险",
+		"AFR 只判断已记录到的证据，这不代表绝对安全。",
+		"开始记录前已存在，不归因于本次 AI。",
+		"实际网络流量",
+		"future_capability（状态未知）",
+		"未监控表示 AFR 没有这类证据，不能据此判断该行为没有发生。",
+		"项目文件扫描不完整",
+		"工作区补丁已截断",
+		"部分工具缺少结束事件，无法确认其执行结果",
+		"部分二进制内容未进入补丁",
+		"stdout 输出仅保留了一部分",
+	} {
+		if !strings.Contains(document, expected) {
+			t.Fatalf("HTML missing %q", expected)
+		}
+	}
+
+	ordered := []string{`<header class="hero">`, `id="attention"`, `id="changes"`, `id="evidence-boundary"`, `id="technical-details"`, "<summary>事件时间线</summary>"}
+	last := -1
+	for _, marker := range ordered {
+		index := strings.Index(document, marker)
+		if index <= last {
+			t.Fatalf("%q was not in decision-first order: index=%d last=%d", marker, index, last)
+		}
+		last = index
+	}
+	if raw := strings.Index(document, "network_monitor=not_observable"); raw < strings.Index(document, "技术详情") {
+		t.Fatalf("raw capability appeared before technical details: index=%d", raw)
+	}
+	if strings.Contains(document[:strings.Index(document, "技术详情")], "desktop-session") {
+		t.Fatal("session ID appeared in the decision summary")
+	}
+}
+
+func TestHTMLReportShowsActionableRiskAndIncompleteState(t *testing.T) {
+	view := NewReportView(
+		SessionMetadata{ID: "risk-session", State: "incomplete", Capabilities: []string{"workspace_scan=observed"}},
+		WorkspaceDelta{},
+		[]RiskFinding{{RuleID: "bulk-change", RuleVersion: 1, Severity: "high", Explanation: "检测到大量变化", Action: "先审查文件列表"}},
+		nil,
+		nil,
+	)
+	document := renderHTMLForTest(t, view)
+	for _, expected := range []string{"记录不完整，需要检查", "发现 1 项需要检查，最高：高风险", "先审查文件列表", "全部风险与建议"} {
+		if !strings.Contains(document, expected) {
+			t.Fatalf("HTML missing %q", expected)
+		}
+	}
+	if strings.Contains(document, "未发现规则可确认的风险") {
+		t.Fatal("risk report rendered the no-findings conclusion")
+	}
+}
+
+func TestReportCapabilitiesKeepAllObservedAndUnknownTruth(t *testing.T) {
+	observed, missing := reportCapabilities([]string{"workspace_scan=observed", "local_policy=observed"})
+	if len(observed) != 2 || len(missing) != 0 {
+		t.Fatalf("observed=%+v missing=%+v", observed, missing)
+	}
+	observed, missing = reportCapabilities([]string{"future_capability=unknown"})
+	if len(observed) != 0 || len(missing) != 1 || missing[0].Label != "future_capability（状态未知）" {
+		t.Fatalf("observed=%+v missing=%+v", observed, missing)
 	}
 }
 
@@ -125,9 +303,26 @@ func TestReportTimelineBoundsHundredThousandEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Count(document, []byte("data-event-row")) != 1000 || !bytes.Contains(document, []byte("99000 events omitted (seq 501–99500)")) || !bytes.Contains(document, []byte("[summary truncated]")) {
+	if bytes.Count(document, []byte("data-event-row")) != 1000 || !bytes.Contains(document, []byte("HTML 省略 99000 条事件（seq 501–99500）")) || !bytes.Contains(document, []byte("[摘要已截断]")) {
 		t.Fatal("HTML timeline did not preserve its fixed bounds and markers")
 	}
+}
+
+func renderHTMLForTest(t *testing.T, view ReportView) string {
+	t.Helper()
+	root := t.TempDir()
+	redactor, err := NewRedactor(&Fingerprinter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeHTMLReport(root, view, redactor); err != nil {
+		t.Fatal(err)
+	}
+	document, err := os.ReadFile(filepath.Join(root, "report.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return html.UnescapeString(string(document))
 }
 
 func TestFormatRunSummaryUsesCapabilityVector(t *testing.T) {

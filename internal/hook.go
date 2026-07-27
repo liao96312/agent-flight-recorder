@@ -230,7 +230,7 @@ func createHookSession(options HookOptions, pluginData, hostHash string, input c
 	session.Meta.CaptureMode = "desktop_hook"
 	session.Meta.Host = "codex"
 	session.Meta.HostSession = hostHash
-	session.Meta.Capabilities = hookCapabilities(before)
+	session.Meta.Capabilities = hookCapabilities(before, false)
 	if err := WriteWorkspaceArtifact(session.Root, "workspace-before.json", before, redactor); err != nil {
 		return hookMapping{}, HookResult{}, err
 	}
@@ -318,7 +318,8 @@ func finalizeHookTurn(options HookOptions, metadata *SessionMetadata, sessionRoo
 		return "", nil, err
 	}
 	after := CollectWorkspace(metadata.Workspace, options.SessionsRoot, fingerprinter, options.ScanLimits)
-	metadata.Capabilities = hookCapabilities(after)
+	counts := writer.Counts()
+	metadata.Capabilities = hookCapabilities(after, counts["tool_started"] > 0 || counts["tool_finished"] > 0)
 	if err := WriteWorkspaceArtifact(sessionRoot, "workspace-after.json", after, redactor); err != nil {
 		return "", nil, err
 	}
@@ -365,6 +366,7 @@ func writeHookReport(session *Session, counts map[string]uint64, findings []Risk
 	if err != nil {
 		return err
 	}
+	findings = append(findings, timeline.risks...)
 	view := NewReportView(session.Meta, delta, findings, counts, nil)
 	view.Timeline = timeline
 	if err := WriteReportArtifacts(session.Root, view, redactor); err != nil {
@@ -392,12 +394,16 @@ func hookPayload(input codexHook) map[string]any {
 	return payload
 }
 
-func hookCapabilities(snapshot WorkspaceSnapshot) []string {
+func hookCapabilities(snapshot WorkspaceSnapshot, nativeToolEventsObserved bool) []string {
 	git := "workspace_git=not_observable"
 	if snapshot.Git.Available && snapshot.Git.Error == "" {
 		git = "workspace_git=observed"
 	}
-	return []string{"process=not_observable", git, "workspace_scan=observed", "native_tool_events=observed", "local_policy=observed", "os_file_monitor=not_observable", "network_monitor=not_observable"}
+	native := "native_tool_events=not_observable"
+	if nativeToolEventsObserved {
+		native = "native_tool_events=observed"
+	}
+	return []string{"process=not_observable", git, "workspace_scan=observed", native, "local_policy=observed", "os_file_monitor=not_observable", "network_monitor=not_observable"}
 }
 
 func hookRedactor(workspace string, fingerprinter *Fingerprinter) (*Redactor, error) {

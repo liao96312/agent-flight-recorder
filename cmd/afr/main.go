@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -264,7 +263,7 @@ func cleanCommand(args []string) int {
 	flags.SetOutput(io.Discard)
 	olderText := flags.String("older-than", "", "select sessions older than a duration")
 	maxText := flags.String("max-bytes", "", "select oldest sessions until storage is within size")
-	yes := flags.Bool("yes", false, "delete without an interactive confirmation")
+	yes := flags.Bool("yes", false, "delete the previewed sessions")
 	if err := flags.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "AFR_USAGE: %v\n", err)
 		return exitUsage
@@ -302,19 +301,8 @@ func cleanCommand(args []string) int {
 		return 0
 	}
 	if !*yes {
-		if !stdinIsTerminal() {
-			fmt.Fprintln(os.Stderr, "AFR_USAGE: clean deletion requires an interactive terminal or --yes")
-			return exitUsage
-		}
-		confirmed, confirmErr := confirmClean(os.Stdin, os.Stderr)
-		if confirmErr != nil {
-			fmt.Fprintf(os.Stderr, "AFR_RUNTIME: read clean confirmation: %v\n", confirmErr)
-			return exitAFR
-		}
-		if !confirmed {
-			fmt.Fprintln(os.Stderr, "Clean cancelled; nothing deleted.")
-			return 0
-		}
+		fmt.Fprintln(os.Stderr, "Preview only; rerun with --yes to delete the listed sessions.")
+		return 0
 	}
 	deleted, err := afr.ExecuteClean(plan)
 	for _, target := range deleted {
@@ -325,23 +313,6 @@ func cleanCommand(args []string) int {
 		return exitAFR
 	}
 	return 0
-}
-
-func stdinIsTerminal() bool {
-	info, err := os.Stdin.Stat()
-	return err == nil && info.Mode()&os.ModeCharDevice != 0
-}
-
-func confirmClean(input io.Reader, output io.Writer) (bool, error) {
-	if _, err := fmt.Fprint(output, "Delete the listed sessions? [y/N] "); err != nil {
-		return false, err
-	}
-	answer, err := bufio.NewReader(input).ReadString('\n')
-	if err != nil && !errors.Is(err, io.EOF) {
-		return false, err
-	}
-	answer = strings.ToLower(strings.TrimSpace(answer))
-	return answer == "y" || answer == "yes", nil
 }
 
 func parseCleanDuration(value string) (time.Duration, error) {

@@ -51,6 +51,38 @@ func TestPlanCleanCapacityIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestPlanCleanSkipsResumableDesktopSession(t *testing.T) {
+	for _, state := range []string{"active", "idle"} {
+		for _, retention := range []string{"older-than", "max-bytes"} {
+			t.Run(state+"/"+retention, func(t *testing.T) {
+				root := t.TempDir()
+				completed := completedCleanSession(t, root)
+				desktop, err := NewSession(root, t.TempDir(), []string{"codex-desktop"}, testRedactor(t))
+				if err != nil {
+					t.Fatal(err)
+				}
+				desktop.Meta.CaptureMode = "desktop_hook"
+				if err := desktop.Checkpoint(state, 0, ""); err != nil {
+					t.Fatal(err)
+				}
+				options := CleanOptions{OlderThan: time.Hour, Now: time.Now().Add(48 * time.Hour)}
+				if retention == "max-bytes" {
+					options = CleanOptions{MaxBytes: 1}
+					size, err := cleanSessionSize(desktop.Root)
+					if err != nil {
+						t.Fatal(err)
+					}
+					options.MaxBytes = size
+				}
+				plan, err := PlanClean(root, options)
+				if err != nil || len(plan.Targets) != 1 || plan.Targets[0].ID != completed.Meta.ID {
+					t.Fatalf("plan=%+v error=%v", plan, err)
+				}
+			})
+		}
+	}
+}
+
 func TestExecuteCleanRevalidatesThenDeletesExactTargets(t *testing.T) {
 	root := t.TempDir()
 	first := completedCleanSession(t, root)

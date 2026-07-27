@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"testing"
 )
@@ -37,6 +38,10 @@ func TestCodexHookTwoTurnsReuseSessionAndVerify(t *testing.T) {
 	}
 	if verification := VerifySession(firstStop.SessionDir); !verification.Valid {
 		t.Fatalf("first verify: %+v", verification.Issue)
+	}
+	firstMetadata, issue := readSessionForVerify(firstStop.SessionDir)
+	if issue != nil || !slices.Contains(firstMetadata.Capabilities, "native_tool_events=observed") {
+		t.Fatalf("first capabilities = %v, issue = %+v", firstMetadata.Capabilities, issue)
 	}
 
 	call(map[string]any{"hook_event_name": "SessionStart", "source": "compact"})
@@ -73,6 +78,11 @@ func TestCodexHookTwoTurnsReuseSessionAndVerify(t *testing.T) {
 	cleared := call(map[string]any{"hook_event_name": "SessionStart", "source": "clear"})
 	if cleared.SessionID == started.SessionID {
 		t.Fatal("clear reused the previous AFR session")
+	}
+	clearedStop := call(map[string]any{"hook_event_name": "Stop", "turn_id": "turn-3"})
+	clearedMetadata, issue := readSessionForVerify(clearedStop.SessionDir)
+	if issue != nil || !slices.Contains(clearedMetadata.Capabilities, "native_tool_events=not_observable") {
+		t.Fatalf("cleared capabilities = %v, issue = %+v", clearedMetadata.Capabilities, issue)
 	}
 }
 
@@ -116,5 +126,47 @@ func TestCodexHookConcurrentAppend(t *testing.T) {
 	verification := VerifySession(stopped.SessionDir)
 	if !verification.Valid || verification.Events != workers+4 {
 		t.Fatalf("verify = %+v", verification)
+	}
+}
+
+func TestCodexHookReportKeepsPriorTurnRisk(t *testing.T) {
+	workspace, sessions, pluginData := t.TempDir(), t.TempDir(), t.TempDir()
+	call := func(event map[string]any) HookResult {
+		event["session_id"] = "risk-history-session"
+		event["cwd"] = workspace
+		data, _ := json.Marshal(event)
+		result, err := IngestCodexHook(HookOptions{SessionsRoot: sessions, PluginData: pluginData, Input: bytes.NewReader(data)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+
+	call(map[string]any{"hook_event_name": "SessionStart", "source": "startup"})
+	for index := range bulkChangeThreshold {
+		path := filepath.Join(workspace, fmt.Sprintf("file-%03d.txt", index))
+		if err := os.WriteFile(path, []byte("changed"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	call(map[string]any{"hook_event_name": "Stop", "turn_id": "turn-1"})
+	for index := range bulkChangeThreshold {
+		if err := os.Remove(filepath.Join(workspace, fmt.Sprintf("file-%03d.txt", index))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	call(map[string]any{"hook_event_name": "UserPromptSubmit", "turn_id": "turn-2", "prompt": "continue"})
+	second := call(map[string]any{"hook_event_name": "Stop", "turn_id": "turn-2"})
+
+	data, err := os.ReadFile(filepath.Join(second.SessionDir, "agent-risk.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var report RiskReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.HighestRisk != "medium" || len(report.Findings) != 1 || report.Findings[0].RuleID != "workspace.bulk_change" {
+		t.Fatalf("risk report after second turn = %+v", report)
 	}
 }

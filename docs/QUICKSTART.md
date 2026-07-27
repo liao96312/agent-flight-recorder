@@ -1,6 +1,6 @@
 # AFR 5 分钟快速开始（Windows）
 
-AFR 只记录通过它启动的**新任务**，不能追溯当前或已经运行中的 Agent 会话。Git 与 Codex / Claude Code 是外部前置，不包含在 `afr.exe` 中。
+AFR 只记录通过它启动的**新任务**，不能追溯当前或已经运行中的 Agent 会话。Git 与 Codex / Claude Code 是外部前置，不包含在 `afr.exe` 中。Claude Code 必须已有 Claude 登录或兼容 API provider 认证；AFR 不配置或持久化凭据，`claude --version` 成功也不代表认证可用。
 
 ## 1. 安装并校验
 
@@ -91,7 +91,7 @@ Windows 分隔符 `\` 会统一为 `/`。非法模式会在 child 启动前失�
 
 ## 6. 预览并清理
 
-清理默认只预览，不会后台自动执行：
+清理默认只预览，不会后台自动执行。不带 `--yes` 时永远不会删除，`--yes` 是唯一删除授权；如果不定期显式清理，磁盘占用会持续增长。可恢复的 Codex Desktop Hook session 受保护并从清理计划中跳过：
 
 ```powershell
 afr clean --older-than 30d
