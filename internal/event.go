@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -61,6 +62,79 @@ func NewEventWriter(sessionRoot string, redactor *Redactor) (*EventWriter, error
 	}
 	now := time.Now()
 	return &EventWriter{file: file, buffer: bufio.NewWriterSize(file, flushBytes), started: now, lastFlush: now, redactor: redactor, counts: map[string]uint64{}}, nil
+}
+
+func OpenEventWriter(sessionRoot string, redactor *Redactor, started time.Time) (*EventWriter, error) {
+	if redactor == nil {
+		return nil, errors.New("event writer requires a redactor")
+	}
+	inspection, issue, err := inspectEventStream(sessionRoot)
+	if err != nil {
+		return nil, err
+	}
+	if issue != nil {
+		return nil, errors.New(issue.Message)
+	}
+	previous, err := hex.DecodeString(inspection.FinalHash)
+	if err != nil || len(previous) != sha256.Size {
+		return nil, errors.New("existing event hash is invalid")
+	}
+	counts, err := readEventCounts(sessionRoot)
+	if err != nil {
+		return nil, err
+	}
+	path, err := safeJoin(sessionRoot, "events.jsonl")
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("open events for append: %w", err)
+	}
+	if started.IsZero() {
+		started = time.Now()
+	}
+	now := time.Now()
+	writer := &EventWriter{file: file, buffer: bufio.NewWriterSize(file, flushBytes), started: started, seq: inspection.ValidEvents, lastFlush: now, redactor: redactor, counts: counts}
+	copy(writer.prevHash[:], previous)
+	return writer, nil
+}
+
+func readEventCounts(sessionRoot string) (map[string]uint64, error) {
+	path, err := safeJoin(sessionRoot, "events.jsonl")
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	counts := map[string]uint64{}
+	reader := bufio.NewReaderSize(file, 64*1024)
+	for {
+		line, readErr, tooLarge := readBoundedEventLine(reader)
+		if tooLarge {
+			return nil, errors.New("event exceeds count line limit")
+		}
+		if len(line) > 0 {
+			var envelope eventEnvelope
+			if err := json.Unmarshal(line, &envelope); err != nil {
+				return nil, err
+			}
+			var body EventBody
+			if err := json.Unmarshal(envelope.Body, &body); err != nil {
+				return nil, err
+			}
+			counts[body.Type]++
+		}
+		if readErr != nil {
+			if readErr == io.EOF {
+				return counts, nil
+			}
+			return nil, readErr
+		}
+	}
 }
 
 func (w *EventWriter) Append(eventType, source string, payload any, critical bool) (uint64, error) {

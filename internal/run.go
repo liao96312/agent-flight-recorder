@@ -140,6 +140,7 @@ func Run(options RunOptions, argv []string) (RunResult, error) {
 
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir = workspace
+	cmd.Env = append(os.Environ(), "AFR_SESSION_ID="+session.Meta.ID)
 	tree, err := prepareProcessTree(cmd)
 	if err != nil {
 		return finishSetupFailure(session, writer, result, "start_child", err)

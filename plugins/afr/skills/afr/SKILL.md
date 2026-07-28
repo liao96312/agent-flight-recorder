@@ -5,13 +5,22 @@ description: Record a new non-interactive Codex or Claude Code task with the loc
 
 # Agent Flight Recorder
 
-Use the `afr` executable as a thin local wrapper. AFR records only a **new child task** launched through `afr run`; it cannot retroactively capture the current conversation or an already-running agent session.
+Use the `afr` executable as the single recorder. Trusted Codex Desktop hooks automatically record future turns after plugin installation and a full Desktop restart. AFR never retroactively imports earlier messages. `afr run` remains the explicit wrapper for new non-interactive Codex or Claude Code child tasks.
+
+## Codex Desktop capture
+
+- The plugin sends `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, and `Stop` to `afr hook --host codex`.
+- `resume` and `compact` reuse the mapped AFR session; `startup` and `clear` switch according to the host lifecycle.
+- `Stop` creates an `idle` checkpoint and refreshes the report; it is not a reliable SessionEnd and must not be described as `completed`.
+- Desktop capture starts only after the plugin is installed, trusted in `/hooks`, and the Desktop app is fully restarted. A resumed task records only later turns.
+- Hosted tools that do not emit local Hook events remain `not_observable`.
 
 ## Before running
 
 1. Run `afr version` and report the installed version. This plugin version requires AFR CLI `0.1.x`. If the command is missing or its version is incompatible, stop with the observed version and a clear request to install a compatible CLI; do not install it silently.
 2. Resolve the workspace to an absolute path.
 3. Confirm the requested host and new task. Treat `$ARGUMENTS` as the user's requested action when present.
+4. For Claude Code, require an existing Claude login or compatible API provider authentication. AFR does not configure or persist credentials; `claude --version` alone does not prove authentication. If the child returns `Not logged in`, report the completed failed session and stop.
 
 AFR automatically honors a workspace-root `.afrignore` and strict `.afr.json` custom RE2 redaction rules. If either file is invalid, report the configuration error; do not bypass or rewrite it unless the user asks.
 
@@ -47,7 +56,8 @@ Use `afr show --json latest` or `afr verify --json latest` when structured outpu
 - Show one session with `afr show <session-id>` or `afr show latest`; add `--open` to open its local HTML report.
 - Verify integrity with `afr verify <session-id>` or `afr verify latest`.
 - Preview retention targets first with `afr clean --older-than 30d` or `afr clean --max-bytes <size>`.
-- Delete only after explicit user confirmation, using the same command plus `--yes`.
+- Resumable Codex Desktop Hook sessions are protected and skipped by cleanup.
+- Without `--yes`, clean is always preview-only. Delete only after explicit user confirmation, using the same command plus `--yes`.
 
 ## Evidence boundary
 

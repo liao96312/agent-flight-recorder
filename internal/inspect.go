@@ -210,7 +210,9 @@ func inspectSessionSummary(root, directoryID string) SessionSummary {
 		return summary
 	}
 	summary.TornTailBytes = inspection.TornTailBytes
-	summary.Incomplete = inspection.TornTailBytes > 0 || inspection.LastEventType != "session_finished" || (summary.State != "completed" && summary.State != "failed")
+	finalized := (summary.State == "completed" || summary.State == "failed") && inspection.LastEventType == "session_finished"
+	idle := summary.State == "idle" && inspection.LastEventType == "turn_stopped"
+	summary.Incomplete = inspection.TornTailBytes > 0 || (!finalized && !idle)
 	if summary.Incomplete {
 		summary.State = "incomplete"
 	}

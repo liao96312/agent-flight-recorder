@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
+
+var afrSessionIDPattern = regexp.MustCompile(`^[0-9]{8}T[0-9]{6}\.[0-9]{9}Z-[0-9a-f]{24}$`)
 
 type SessionMetadata struct {
 	FormatVersion int      `json:"format_version"`
@@ -24,6 +27,9 @@ type SessionMetadata struct {
 	ChildExitCode *int     `json:"child_exit_code,omitempty"`
 	FinalEventSeq uint64   `json:"final_event_seq,omitempty"`
 	FinalHash     string   `json:"final_hash,omitempty"`
+	CaptureMode   string   `json:"capture_mode,omitempty"`
+	Host          string   `json:"host,omitempty"`
+	HostSession   string   `json:"host_session_fingerprint,omitempty"`
 	Capabilities  []string `json:"capabilities"`
 	FlushPolicy   struct {
 		Bytes        int  `json:"bytes"`
@@ -45,6 +51,8 @@ func DefaultSessionsRoot() (string, error) {
 	}
 	return filepath.Join(home, ".afr", "sessions"), nil
 }
+
+func ValidSessionID(value string) bool { return afrSessionIDPattern.MatchString(value) }
 
 func NewSession(sessionsRoot, workspace string, argv []string, redactor *Redactor) (*Session, error) {
 	if len(argv) == 0 {
@@ -116,6 +124,16 @@ func (s *Session) Finish(state string, exitCode *int, seq uint64, finalHash stri
 	s.Meta.State = state
 	s.Meta.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	s.Meta.ChildExitCode = exitCode
+	s.Meta.RecorderPID = 0
+	s.Meta.FinalEventSeq = seq
+	s.Meta.FinalHash = finalHash
+	return atomicWriteJSON(s.Root, "session.json", s.Meta, s.redactor)
+}
+
+func (s *Session) Checkpoint(state string, seq uint64, finalHash string) error {
+	s.Meta.State = state
+	s.Meta.FinishedAt = ""
+	s.Meta.ChildExitCode = nil
 	s.Meta.RecorderPID = 0
 	s.Meta.FinalEventSeq = seq
 	s.Meta.FinalHash = finalHash

@@ -131,6 +131,15 @@ func NewFingerprinter() (*Fingerprinter, error) {
 	return fingerprinter, nil
 }
 
+func NewFingerprinterFromKey(key []byte) (*Fingerprinter, error) {
+	if len(key) != sha256.Size {
+		return nil, fmt.Errorf("fingerprinter key must be %d bytes", sha256.Size)
+	}
+	fingerprinter := &Fingerprinter{}
+	copy(fingerprinter.key[:], key)
+	return fingerprinter, nil
+}
+
 func (fingerprinter *Fingerprinter) Bytes(data []byte) string {
 	hash := hmac.New(sha256.New, fingerprinter.key[:])
 	_, _ = hash.Write(data)

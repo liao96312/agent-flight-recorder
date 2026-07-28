@@ -27,6 +27,17 @@ func TestSessionIDMillionUnique(t *testing.T) {
 	}
 }
 
+func TestValidSessionID(t *testing.T) {
+	if !ValidSessionID("20260722T055635.839786200Z-bb5f14f2d6bed49e442daade") {
+		t.Fatal("valid session ID rejected")
+	}
+	for _, value := range []string{"", "desktop-session", "20260722T055635.839786200Z-bb5f14f2d6bed49e442daaX"} {
+		if ValidSessionID(value) {
+			t.Fatalf("invalid session ID accepted: %q", value)
+		}
+	}
+}
+
 func TestAtomicWriteFailureLeavesNoTemporaryFile(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "occupied")

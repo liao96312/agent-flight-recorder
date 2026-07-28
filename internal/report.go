@@ -38,6 +38,7 @@ type ReportTimelineItem struct {
 type ReportTimeline struct {
 	TotalEvents uint64               `json:"total_events"`
 	Items       []ReportTimelineItem `json:"items"`
+	risks       []RiskFinding
 }
 
 type ReportStream struct {
@@ -109,6 +110,9 @@ func NewReportView(session SessionMetadata, changes WorkspaceDelta, findings []R
 	if changes.Patch.Truncated {
 		limitations = append(limitations, "workspace_patch=truncated")
 	}
+	if counts["tool_started"] != counts["tool_finished"] {
+		limitations = append(limitations, "native_tool_outcomes=partial")
+	}
 	limitations = append(limitations, changes.OmissionReasons...)
 	sort.Strings(limitations)
 	limitations = compactStrings(limitations)
@@ -149,6 +153,7 @@ func readReportTimeline(sessionRoot string) (ReportTimeline, error) {
 	last := make([]ReportTimelineItem, reportTimelineEdgeLimit)
 	lastCount, nextLast := 0, 0
 	total := uint64(0)
+	risks := NewRiskSet()
 	reader := bufio.NewReaderSize(file, 64*1024)
 	for {
 		line, readErr, tooLarge := readBoundedEventLine(reader)
@@ -166,6 +171,13 @@ func readReportTimeline(sessionRoot string) (ReportTimeline, error) {
 			var body EventBody
 			if err := json.Unmarshal(envelope.Body, &body); err != nil {
 				return ReportTimeline{}, fmt.Errorf("decode report timeline event: %w", err)
+			}
+			if body.Type == "risk_found" {
+				var finding RiskFinding
+				if err := json.Unmarshal(body.Payload, &finding); err != nil {
+					return ReportTimeline{}, fmt.Errorf("decode report risk: %w", err)
+				}
+				risks.Add(finding)
 			}
 			summary := string(body.Payload)
 			item := ReportTimelineItem{
@@ -209,7 +221,7 @@ func readReportTimeline(sessionRoot string) (ReportTimeline, error) {
 		})
 	}
 	items = append(items, orderedLast...)
-	return ReportTimeline{TotalEvents: total, Items: items}, nil
+	return ReportTimeline{TotalEvents: total, Items: items, risks: risks.Findings()}, nil
 }
 
 func FormatRunSummary(view ReportView, reportPath string) string {

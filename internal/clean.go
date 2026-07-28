@@ -34,8 +34,9 @@ type CleanPlan struct {
 
 type cleanCandidate struct {
 	CleanTarget
-	time   time.Time
-	active bool
+	time      time.Time
+	active    bool
+	resumable bool
 }
 
 func PlanClean(sessionsRoot string, options CleanOptions) (CleanPlan, error) {
@@ -91,6 +92,9 @@ func PlanClean(sessionsRoot string, options CleanOptions) (CleanPlan, error) {
 				continue
 			}
 			if candidate.active {
+				if candidate.resumable {
+					continue
+				}
 				return CleanPlan{}, fmt.Errorf("refuse active session %s", candidate.ID)
 			}
 			plan.Targets = append(plan.Targets, candidate.CleanTarget)
@@ -179,14 +183,18 @@ func inspectCleanCandidate(root, directoryID string) (cleanCandidate, error) {
 		return cleanCandidate{}, fmt.Errorf("refuse session %s with invalid timestamp", directoryID)
 	}
 	active := metadata.RecorderPID > 0 && processAlive(metadata.RecorderPID)
-	if metadata.State != "completed" && metadata.State != "failed" && metadata.RecorderPID == 0 {
+	resumable := metadata.CaptureMode == "desktop_hook" && (metadata.State == "active" || metadata.State == "idle")
+	if resumable {
+		// ponytail: resumable hooks stay protected until clean and hook ingestion share a lock.
+		active = true
+	} else if metadata.State != "completed" && metadata.State != "failed" && metadata.RecorderPID == 0 {
 		return cleanCandidate{}, fmt.Errorf("refuse session %s with unverifiable active state", directoryID)
 	}
 	size, err := cleanSessionSize(root)
 	if err != nil {
 		return cleanCandidate{}, fmt.Errorf("refuse session %s: %w", directoryID, err)
 	}
-	return cleanCandidate{CleanTarget: CleanTarget{ID: directoryID, Path: root, Bytes: size, Timestamp: timestamp}, time: parsed, active: active}, nil
+	return cleanCandidate{CleanTarget: CleanTarget{ID: directoryID, Path: root, Bytes: size, Timestamp: timestamp}, time: parsed, active: active, resumable: resumable}, nil
 }
 
 func cleanSessionSize(root string) (int64, error) {

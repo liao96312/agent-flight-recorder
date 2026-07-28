@@ -57,7 +57,7 @@ flowchart LR
 
 ## 快速开始
 
-前置：Windows x64、Git，以及需要运行的 Agent CLI。v0.1.0 二进制未做代码签名。
+前置：Windows x64、Git，以及需要运行的 Agent CLI。Claude Code 还必须已有 Claude 登录或兼容 API provider 认证；AFR 不配置或持久化凭据。v0.1.0 二进制未做代码签名。
 
 ```powershell
 $release = 'https://github.com/liao96312/agent-flight-recorder/releases/download/v0.1.0'
@@ -92,6 +92,8 @@ $afr = '.\afr-windows-amd64.exe'
 & $afr clean --older-than 30d       # 只预览
 & $afr clean --older-than 30d --yes # 删除已确认目标
 ```
+
+AFR 不会在后台自动删除 session；不带 `--yes` 的 `afr clean` 永远只预览，`--yes` 是唯一删除授权。可恢复的 Codex Desktop Hook session 受保护，清理时会跳过。
 
 完整复制流程见 [5 分钟快速开始](docs/QUICKSTART.md)。
 
