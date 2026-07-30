@@ -1,15 +1,23 @@
-# Agent Flight Recorder
+<p align="center">
+  <img src="docs/assets/agent-flight-recorder-hero.jpg" width="100%" alt="Agent Flight Recorder：本地证据经过脱敏后写入可验证哈希链">
+</p>
 
-**语言：** [English](README.md) | 简体中文
+<h1 align="center">Agent Flight Recorder</h1>
 
-[![Windows CI](https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml/badge.svg)](https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml)
-[![Unix CI](https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml/badge.svg)](https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml)
-![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D4?logo=windows&logoColor=white)
-![Evidence](https://img.shields.io/badge/Evidence-Local--first-2ea44f)
-[![许可证：MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<p align="center"><strong>编码智能体的本地优先证据：写盘前脱敏，事后可验证。</strong></p>
 
-Agent Flight Recorder（AFR）是一个面向 CLI 编程智能体的本地优先飞行记录器。它通过包装器启动新的非交互式 Codex 或 Claude Code 任务，只采集真实可见的证据，在写盘前脱敏，并生成可离线查看和复核的报告。
+<p align="center"><a href="README.md">English</a> · 简体中文</p>
+
+<p align="center">
+  <a href="https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml"><img alt="Windows CI" src="https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml/badge.svg"></a>
+  <a href="https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml"><img alt="Unix CI" src="https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml/badge.svg"></a>
+  <img alt="Go 1.26" src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white">
+  <img alt="Windows x64" src="https://img.shields.io/badge/Platform-Windows%20x64-0078D4?logo=windows&logoColor=white">
+  <img alt="本地优先证据" src="https://img.shields.io/badge/Evidence-Local--first-2ea44f">
+  <a href="LICENSE"><img alt="MIT 许可证" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
+</p>
+
+Agent Flight Recorder（AFR）是一个面向编码智能体的本地优先飞行记录器。它记录受信任的 Codex Desktop 生命周期事件，或通过包装器启动新的非交互式 Codex / Claude Code 任务；只采集真实可见的证据，在写盘前脱敏，并生成可离线查看和复核的报告。
 
 ## 为什么需要 AFR
 
@@ -34,7 +42,7 @@ AFR 提供一个小而完整的闭环：
 | 完整性 | 版本化 JSONL 事件哈希链，以及 evidence / derived 制品 SHA-256 manifest |
 | 报告 | `agent-flight.md`、`agent-risk.json`，以及带有界可筛选事件时间线的离线 `report.html` |
 | 运维 | `list`、`show`、流式 `verify`、先预览后确认的 `clean` |
-| 集成 | Codex / Claude Code 共用一个薄 skill；没有 hooks、daemon、MCP 或重复记录逻辑 |
+| 集成 | 受信任的 Codex Desktop hooks，加上 Codex / Claude Code 共用的薄 skill；没有 daemon、MCP 或重复记录逻辑 |
 
 ## 架构
 
@@ -44,6 +52,8 @@ flowchart LR
   CLI --> Agent["Codex exec / Claude print mode"]
   Agent --> Output["stdout / stderr / exit"]
   CLI --> Workspace["Workspace before / after"]
+  Desktop["Codex Desktop 生命周期"] --> Hook["afr hook"]
+  Hook --> Redact
   Output --> Redact["有界脱敏"]
   Workspace --> Redact
   Redact --> Events["events.jsonl 哈希链"]

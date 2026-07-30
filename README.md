@@ -1,15 +1,23 @@
-# Agent Flight Recorder
+<p align="center">
+  <img src="docs/assets/agent-flight-recorder-hero.jpg" width="100%" alt="Agent Flight Recorder — local evidence flowing through redaction into a verifiable hash chain">
+</p>
 
-**Language:** English | [简体中文](README.zh-CN.md)
+<h1 align="center">Agent Flight Recorder</h1>
 
-[![Windows CI](https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml/badge.svg)](https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml)
-[![Unix CI](https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml/badge.svg)](https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml)
-![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D4?logo=windows&logoColor=white)
-![Evidence](https://img.shields.io/badge/Evidence-Local--first-2ea44f)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<p align="center"><strong>Local-first evidence for coding agents. Redacted before disk, verifiable afterward.</strong></p>
 
-Agent Flight Recorder (AFR) is a local-first flight recorder for CLI coding agents. It launches a new non-interactive Codex or Claude Code task, captures the evidence it can actually observe, redacts sensitive content before disk writes, and produces offline reports that can be verified later.
+<p align="center">English · <a href="README.zh-CN.md">简体中文</a></p>
+
+<p align="center">
+  <a href="https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml"><img alt="Windows CI" src="https://github.com/liao96312/agent-flight-recorder/actions/workflows/windows.yml/badge.svg"></a>
+  <a href="https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml"><img alt="Unix CI" src="https://github.com/liao96312/agent-flight-recorder/actions/workflows/unix.yml/badge.svg"></a>
+  <img alt="Go 1.26" src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white">
+  <img alt="Windows x64" src="https://img.shields.io/badge/Platform-Windows%20x64-0078D4?logo=windows&logoColor=white">
+  <img alt="Local-first evidence" src="https://img.shields.io/badge/Evidence-Local--first-2ea44f">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
+</p>
+
+Agent Flight Recorder (AFR) is a local-first flight recorder for coding agents. It records trusted Codex Desktop lifecycle events or launches a new non-interactive Codex or Claude Code task, captures only the evidence it can actually observe, redacts sensitive content before disk writes, and produces offline reports that can be verified later.
 
 ## Why AFR
 
@@ -34,7 +42,7 @@ AFR provides a small, auditable loop:
 | Integrity | Versioned JSONL event hash chain plus SHA-256 manifest for evidence and derived reports |
 | Reports | `agent-flight.md`, `agent-risk.json`, and offline `report.html` with a bounded, filterable event timeline |
 | Operations | `list`, `show`, streaming `verify`, and preview-first `clean` |
-| Integrations | One shared thin skill for Codex and Claude Code; no hooks, daemon, MCP server, or duplicated recorder logic |
+| Integrations | Trusted Codex Desktop hooks plus one shared thin skill for Codex and Claude Code; no daemon, MCP server, or duplicated recorder logic |
 
 ## Architecture
 
@@ -44,6 +52,8 @@ flowchart LR
   CLI --> Agent["Codex exec / Claude print mode"]
   Agent --> Output["stdout / stderr / exit"]
   CLI --> Workspace["Workspace before / after"]
+  Desktop["Codex Desktop lifecycle"] --> Hook["afr hook"]
+  Hook --> Redact
   Output --> Redact["Bounded redaction"]
   Workspace --> Redact
   Redact --> Events["events.jsonl hash chain"]
